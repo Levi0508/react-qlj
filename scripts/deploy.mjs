@@ -1,13 +1,15 @@
 /**
  * build 产物上传：逻辑对齐 KS-v10/packages/v10-cli
  * 1. 校验登录，并从 IDE 文件树取得应用根目录（appPath）
- * 2. 按 uploadTo 相对路径解析目标，执行时确认（可浏览重选）
- * 3. 将 distDir 打成 zip，调用 sys/file/import-files 导入解压
+ * 2. 按 uploadTo / uploadPath 解析目标，执行时确认（可浏览重选）
+ * 3. 若目标目录已存在：重命名为「原名+YYYYMMDD」备份（同日冲突再加 -HHmmss），再新建空目录
+ * 4. 将 distDir 打成 zip，调用 sys/file/import-files 导入解压到新目录
  *
  * 用法：
- *   npm run deploy                   # icejs build + 上传
- *   npm run deploy:upload            # 仅上传
+ *   npm run deploy                   # icejs build + 备份 + 上传
+ *   npm run deploy:upload            # 仅备份 + 上传
  *   node scripts/deploy.mjs --yes    # 跳过确认（CI）
+ *   node scripts/deploy.mjs --no-backup  # 跳过备份，直接覆盖上传
  */
 import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -357,6 +359,98 @@ const zipDist = (distPath) => {
   return zip
 }
 
+/** YYYYMMDD（本地时区） */
+const dateStamp = (d = new Date()) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}${m}${day}`
+}
+
+/** HHmmss（本地时区） */
+const timeStamp = (d = new Date()) => {
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  const s = String(d.getSeconds()).padStart(2, '0')
+  return `${h}${m}${s}`
+}
+
+/** 从目标绝对路径拆出父目录与文件夹名，如 /data/app/ibcm_front/ibcm-flow-ui/ → parent + name */
+const splitTarget = (targetFolder) => {
+  const trimmed = trimSlash(targetFolder)
+  const idx = trimmed.lastIndexOf('/')
+  if (idx <= 0) throw new Error(`无法解析上传目标路径: ${targetFolder}`)
+  return {
+    parent: folderOf(trimmed.slice(0, idx)),
+    name: trimmed.slice(idx + 1),
+  }
+}
+
+/** sys/file/set-property&rename=true：重命名目录/文件 */
+const renamePath = async (env, absPath, newName) => {
+  await call(
+    env,
+    'sys/file/set-property',
+    { rename: 'true', path: absPath, filename: newName },
+    `重命名 ${absPath} → ${newName}`,
+  )
+}
+
+/** sys/file/add：在父目录下新建空文件夹 */
+const addFolder = async (env, parentFolder, name) => {
+  await call(
+    env,
+    'sys/file/add',
+    {
+      path: parentFolder,
+      filename: name,
+      isFolder: 'true',
+      title: '',
+      icon: '',
+      img: '',
+      tags: '',
+      hideInMenu: 'false',
+    },
+    `新建目录 ${parentFolder}${name}`,
+  )
+}
+
+/**
+ * 上传前备份：若目标目录已存在，重命名为 原名+YYYYMMDD（同日已有则再加 -HHmmss），再新建同名空目录。
+ * 例：ibcm-flow-ui → ibcm-flow-ui20261015，再生成新的 ibcm-flow-ui
+ */
+const backupTarget = async (env, targetFolder) => {
+  const { parent, name } = splitTarget(targetFolder)
+  let children
+  try {
+    children = await listDir(env, parent)
+  } catch (err) {
+    throw new Error(`无法读取父目录 ${parent}：${err.message}`)
+  }
+
+  const exists = children.some((c) => !c.leaf && c.name === name)
+  if (!exists) {
+    console.log(`   ℹ️  目标目录不存在，跳过备份，将新建 ${name}`)
+    await addFolder(env, parent, name)
+    return { backedUp: false, backupName: null }
+  }
+
+  const taken = new Set(children.map((c) => c.name))
+  let backupName = `${name}${dateStamp()}`
+  if (taken.has(backupName)) {
+    backupName = `${name}${dateStamp()}-${timeStamp()}`
+  }
+  if (taken.has(backupName)) {
+    throw new Error(`备份目录名已存在: ${backupName}，请稍后重试`)
+  }
+
+  console.log(`   💾 备份: ${name} → ${backupName}`)
+  await renamePath(env, folderOf(parent, name), backupName)
+  await addFolder(env, parent, name)
+  console.log(`   📁 已新建空目录: ${folderOf(parent, name)}`)
+  return { backedUp: true, backupName }
+}
+
 const importZip = async (env, targetFolder, zip, zipName) => {
   ensureHttp()
   const form = new FormDataCtor()
@@ -386,6 +480,7 @@ const importZip = async (env, targetFolder, zip, zipName) => {
 const main = async () => {
   const skipBuild = process.argv.includes('--upload-only')
   const skipConfirm = process.argv.includes('--yes') || process.argv.includes('-y')
+  const skipBackup = process.argv.includes('--no-backup')
   const env = loadConfig()
 
   console.log(`\n📦 ibcm_flow`)
@@ -402,6 +497,13 @@ const main = async () => {
 
   await ensureSession(env)
   const { target } = await chooseTarget(env, env, skipConfirm)
+
+  if (skipBackup) {
+    console.log('   ⚠️  已跳过备份（--no-backup），将直接覆盖上传')
+  } else {
+    const { backedUp, backupName } = await backupTarget(env, target)
+    if (backedUp) console.log(`   ✅ 旧包已备份为: ${backupName}`)
+  }
 
   const zip = zipDist(distPath)
   console.log(`   🗜  打包完成 ${(zip.toBuffer().length / 1024).toFixed(1)} KB`)
