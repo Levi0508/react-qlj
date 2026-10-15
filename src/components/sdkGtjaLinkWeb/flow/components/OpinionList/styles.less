@@ -1,0 +1,36 @@
+@import '../../../index.less';
+
+
+@border-color: #d9d9d9;
+@background-color: #f2f2f2;
+
+.@{gtja-link-prefix}-descriptionItem {
+    border-color: @border-color;
+    :global {
+        .ant-descriptions-item-label {
+            text-align: right;
+            vertical-align: top;
+            width: 180px;
+            background-color: @background-color;
+        }
+        .ant-descriptions-item-content {
+            background-color: white;
+        }
+        tbody {
+            border-color: @border-color;
+        }
+        tr {
+            border-color: @border-color;
+        }
+        th {
+            border-color: @border-color;
+        }
+        td {
+            border-color: @border-color;
+        }
+    }
+}
+
+.@{gtja-link-prefix}-currentOpinion {
+    border: 1px solid @primary-color;
+}

@@ -1,0 +1,61 @@
+.exportBtnWrapper {
+   display: flex;
+   justify-content: flex-end;
+
+   .exportBtn {
+      margin-top: 8px;
+      margin-right: 8px;
+   }
+}
+
+.title {
+   font-size: 18px;
+   font-weight: 600;
+   margin-top: 8px;
+   margin-bottom: 8px;
+   margin-left: 8px;
+}
+
+.uploadText {
+   display: flex;
+}
+
+.tableCell {
+   // 多行文本-溢出隐藏
+   overflow: hidden;
+   text-overflow: ellipsis;
+   display: -webkit-box;
+   -webkit-box-orient: vertical;
+   -webkit-line-clamp: 3;
+   // 识别换行符
+   white-space: pre-wrap;
+}
+
+.coloredRow {
+   background: #eee;
+}
+
+.coloredText {
+   color: red;
+}
+
+.ant-form {
+   border: none;
+}
+
+.ant-anchor {
+   .ant-anchor-ink {
+      left: auto;
+      right: 0;
+
+      &::before {
+         left: auto;
+         right: 2px;
+      }
+   }
+
+   .ant-anchor-link {
+      padding: 7px 0 7px 16px;
+   }
+}
+

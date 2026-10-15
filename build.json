@@ -1,0 +1,99 @@
+{
+  "plugins": [
+    [
+      "build-plugin-icestark",
+      {
+        "umd": true
+      }
+    ],
+    [
+      "build-plugin-antd",
+      {
+        "themeConfig": {
+          "primary-color": "#0962c1"
+        }
+      }
+    ],
+    [
+      "build-plugin-fusion",
+      {
+        "themePackage": "@alifd/theme-design-pro"
+      }
+    ],
+    [
+      "build-plugin-moment-locales",
+      {
+        "locales": [
+          "zh-cn"
+        ]
+      }
+    ]
+  ],
+  "lessLoaderOptions": {
+    "lessOptions": {
+      "strictMath": true
+    }
+  },
+  // 本地开发使用，打包部署到nginx后无用
+  "proxy": {
+    // "/api/eoagw/eoaflow": {
+    //             "enable": true,
+    //             "target": "http://10.187.65.3:8094", // 测试环境
+    //   //   "target": "http://10.176.124.213:8094", // 湘贤本地后台
+    //             "changeOrigin": true,
+    //             "pathRewrite": {
+    //               "^/api/eoagw/eoaflow": ""
+    //             
+    //   },
+    // },
+    // "/oaflow": {
+    //   "enable": true,
+    //   // "target": "http://10.181.135.29:8004",
+    //   // "target": "http://10.189.111.30:8009",
+    //   // "target": "http://10.176.179.70:8009",
+    //   "target": "http://10.187.65.3:8094", // 测试环境
+    //   // "target": "http://10.176.124.213:8094", // 湘贤本地后台
+    //   "changeOrigin": true,
+    //   "pathRewrite": {
+    //                 "^/oaflow": ""
+    //               
+    //   },
+    // },
+    // 测试、本地环境接口地址
+    "/ibcm_flow": {
+      "enable": true,
+      // "target": "http://10.187.65.3:8094", // 测试环境
+      // "target": "http://10.176.124.213:8094", // 湘贤本地后台
+      "target": "http://localhost:8094", // 本地后台
+      "changeOrigin": true,
+      "pathRewrite": {
+        "^/ibcm_flow": ""
+      }
+    },
+    // 生产环境接口地址
+    // "/ibcm_flow": {
+    //   "enable": true,
+    //   "target": "http://10.181.135.26", // 生产环境
+    //   "changeOrigin": true
+    // },
+    "/oauth": {
+      "enable": true,
+      // "target": "http://10.181.114.81:8002",// 生产环境
+      "target": "http://10.187.129.156:8002", // 测试环境
+      "changeOrigin": true
+    },
+    "/open_api": {
+      "enable": true,
+      "target": "http://10.187.129.156:8021",
+      "changeOrigin": true,
+      // "pathRewrite": {
+      // "^/open_api": ""
+      // }
+    }
+  },
+  "publicPath": "/ibcm_url",
+  "devPublicPath": "/ibcm_url",
+  "define": {
+    "BASE_PATH": "/ibcm_url"
+  }
+}

@@ -1,0 +1,97 @@
+@import '../../../index.less';
+
+.@{gtja-link-prefix}-card {
+    :global {
+        .ant-card-body {
+            padding       : 8px;
+            height        : 360px;
+            display       : flex;
+            flex-direction: column;
+            overflow      : auto;
+            padding-bottom: 0 !important;
+        }
+    }
+}
+
+.@{gtja-link-prefix}-searchHighlight {
+    background-color: rgb(251, 245, 180);
+}
+
+.@{gtja-link-prefix}-leftTree {
+    :global {
+        li {
+            padding: 0 !important;
+        }
+        li:first-child {
+            padding: 0 !important;
+        }
+        li:last-child {
+            padding: 0 !important;
+        }
+    }
+}
+
+.@{gtja-link-prefix}-midItem {
+    width        : 100%;
+    border-radius: 4px;
+    border       : 1px solid @primary-color;
+    color        : @primary-color;
+    margin-top: 8px;
+    height       : 32px;
+    display      : flex !important; // 防止被全局污染
+    align-items  : center;
+
+    .text {
+        overflow        : hidden;
+        text-overflow   : ellipsis;
+        -o-text-overflow: ellipsis;
+        white-space     : nowrap;
+        flex: 1;
+        padding-left: 8px;
+    }
+
+    .icon {
+        width      : 32px;
+        height     : 32px;
+        padding    : 8px;
+        cursor     : pointer;
+        display    : flex;
+        align-items: center;
+    }
+    .iconDisabled {
+        cursor     : no-drop;
+    }
+}
+
+.@{gtja-link-prefix}-rightItem {
+    width        : 100%;
+    border-radius: 4px;
+    border       : 1px solid @primary-color;
+    color        : @primary-color;
+    margin-bottom: 8px;
+    height       : 32px;
+    display      : flex !important; // 防止被全局污染
+    align-items  : center;
+
+    .text {
+        overflow        : hidden;
+        text-overflow   : ellipsis;
+        -o-text-overflow: ellipsis;
+        white-space     : nowrap;
+        flex: 1;
+        padding-left: 8px;
+    }
+
+    .icon {
+        width      : 32px;
+        height     : 32px;
+        padding    : 8px;
+        cursor     : pointer;
+        display    : flex;
+        align-items: center;
+    }
+    .iconDisabled {
+        cursor     : no-drop;
+    }
+
+}

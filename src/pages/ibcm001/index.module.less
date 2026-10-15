@@ -1,0 +1,36 @@
+// 054流程面板拉宽（局部样式，不影响051等其他流程）
+.root :global {
+    .gtja-link-flowContent {
+        padding-left: calc(50% - 780px);
+        padding-right: calc(50% - 780px);
+    }
+
+    // 0526提：意见框左侧标题压缩
+    .gtja-link-descriptionItem {
+        .ant-descriptions-item-label.ant-descriptions-item-colon {
+            width: 20%;
+        }
+    }
+
+
+    // 隐藏tab栏，只显示审批单内容
+    .ant-tabs-nav-wrap {
+        display: none !important;
+    }
+
+    // 移除内容区域的顶部padding
+    .ant-tabs-content-holder {
+        padding-top: 0 !important;
+    }
+
+    // 确保tab内容区域正常显示
+    .ant-tabs-tabpane {
+        padding-top: 0 !important;
+    }
+
+    .App {
+        .ant-tabs-nav-wrap {
+            display: block !important;
+        }
+    }
+}

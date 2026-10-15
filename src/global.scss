@@ -1,0 +1,80 @@
+@import '~antd/dist/antd.css';
+
+body {
+  margin: 0;
+}
+
+// 全局表格项
+.ant-table-tbody>tr>td {
+  padding: 0px 16px 0px 16px !important;
+  height: 36px;
+}
+
+.icestark-child-app {
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  ul,
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin-left: 0;
+  }
+
+}
+
+// 以下为主表单相关样式
+.FormReport .ant-row .ant-form-item {
+  margin-bottom: 0px;
+}
+
+.FormReport .ant-row .ant-form-item .ant-form-item-control span>input {
+  // border: none;
+  height: 100%;
+}
+
+.FormReport .ant-row .ant-form-item .ant-select-focused .ant-select-selection,
+.ant-select-selection:focus,
+.ant-select-selection:active {
+  border-right-width: 0;
+  outline: 0;
+  box-shadow: none;
+  -webkit-box-shadow: none
+}
+
+.FormReport .ant-row .ant-form-item .ant-form-item-control .ant-form-item-children .ant-calendar-picker .ant-input {
+  border: none;
+}
+
+.FormReport .ant-row .ant-form-item .ant-form-item-control .ant-form-item-children .ant-select-selection {
+  // border: none;
+}
+
+form {
+  /* border: 1px solid #d9d9d9; */
+}
+
+.RowStyle {
+  border-bottom: 1px solid #d9d9d9;
+
+  .ant-form-item-control {
+    background-color: #fff;
+    padding: 0px 4px;
+  }
+
+  .remarkCls .ant-form-item-label label {
+    line-height: 5;
+  }
+}
+
+.FormReport .ant-input[disabled] {
+  color: rgba(0, 0, 0, 0.55)
+}

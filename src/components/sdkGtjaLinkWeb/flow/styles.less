@@ -1,0 +1,88 @@
+@import "~antd/lib/style/index.less";
+@import '../index.less';
+
+.@{gtja-link-prefix}-flowContent {
+    margin-bottom: 0px;
+    padding-left: calc(50% - 610px);
+    padding-right: calc(50% - 610px);
+}
+@media screen and (max-width: 1300px) {
+    .@{gtja-link-prefix}-flowContent {
+        margin-bottom: 0px;
+        padding-left: calc(50% - 560px);
+        padding-right: calc(50% - 560px);
+    }
+}
+
+.@{gtja-link-prefix}-flowTitle {
+    h3.ant-typography {
+        width     : 100%;
+        text-align: center;
+        color     : @primary-color;
+    }
+}
+
+:global {
+    .ant-modal-mask {
+        background-color: rgba(0, 0, 0, 0.25) !important;
+    }
+}
+
+.@{gtja-link-prefix}-modal {
+    :global {
+        .ant-modal-mask {
+            background-color: rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .ant-modal-header {
+            background-color: @gtja-modal-header-bg;
+            padding         : @gtja-padding-vertical @gtja-padding-horizontal;
+            border-bottom   : 0;
+        }
+
+        .ant-modal-footer {
+            padding   : 0 @gtja-padding-horizontal @gtja-padding-vertical @gtja-padding-horizontal;
+            border-top: 0;
+
+            div {
+                padding-top: @gtja-padding-vertical;
+                border-top : 1px solid #e8e8e8;
+            }
+        }
+
+        .ant-modal-close-x {
+            width      : 60px;
+            height     : 40px;
+            line-height: 40px;
+        }
+    }
+}
+
+.@{gtja-link-prefix}-tabs {
+    :global {
+        .ant-tabs .ant-tabs-small-bar .ant-tabs-tab {
+            margin-right: 20px;
+        }
+    }
+}
+
+.@{gtja-link-prefix}-countBadge {
+    .ant-badge-count {
+        background-color: @primary-color;
+    }
+
+    margin-top: -2px;
+}
+
+.@{gtja-link-prefix}-tabs_attachment {
+    :global {
+        .ant-card {
+            background: transparent;
+        }
+    }
+}
+@media print{
+    .@{gtja-link-prefix}-noprint{
+        display: none;
+    }
+}

@@ -1,0 +1,9 @@
+{
+  "baseUrl": "http://测试环境地址:端口/",
+  "cookie": "",
+  "username": "admin",
+  "password": "******",
+  "insecure": false,
+  "distDir": "build",
+  "uploadPath": "/data/app/ibcm_front/ibcm-flow-ui"
+}

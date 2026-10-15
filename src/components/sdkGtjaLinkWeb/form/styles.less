@@ -1,0 +1,376 @@
+@import '../index.less';
+
+.link_container {
+    min-width: 1220px;
+    width: 100%;
+    padding-top: 60px;
+    background-color: #f0f0f0;
+    .link_content {
+        padding-top: 0px;
+        overflow-x: hidden;
+        margin: 0 30px;
+        min-height: calc(100vh - 120px);
+        .ant-breadcrumb {
+            height: 25px;
+            line-height: 25px;
+            margin: 14px 0px!important;
+            font-size: 14px;
+            font-weight: 700;
+            color: #222222;
+            padding-left: 10px;
+            .ant-breadcrumb-separator {
+                display: none;
+            }
+            span span.ant-breadcrumb-link {
+                background: url(/image/breadcrumb_folder.png) 5px center no-repeat;
+                background-size: 40px;
+                padding-left: 55px;
+                font-size: 14px;
+            }
+            span:first-child span.ant-breadcrumb-link {
+                background: url(/image/breadcrumb_home.png) 5px center no-repeat;
+                background-size: 20px;
+                padding-left: 30px;
+            }
+            span:last-child span.ant-breadcrumb-link {
+                background: url(/image/breadcrumb_page.png) 5px center no-repeat;
+                background-size: 40px;
+                padding-left: 55px;
+              }
+        }
+        .pageinfos {
+            background-color: #fff;
+            .querypage > .queryform {
+                margin-bottom: 12px;
+            }
+        }
+    }
+}
+
+.link_container::after {
+    clear: both;
+    visibility: hidden;
+    width: 100%;
+    height: 0;
+    content: '';
+    display: block;
+}
+
+@media screen and (max-width: 1280px) {
+    .link_container {
+    width: 100%;
+    padding-top: 0;
+    min-width: 1220px;
+  }
+  .link_container .link_content {
+    padding-top: 0px;
+    overflow-x: hidden;
+    margin: 0 30px;
+    min-height: calc(100vh - 120px);
+  }
+}
+
+@media screen and (min-width: 1340px) {
+    .link_container {
+    width: 100%;
+    padding-top: 60px;
+    min-width: 1220px;
+  }
+  .link_container .link_content {
+    padding-top: 0px;
+    overflow-x: hidden;
+    margin: 0 75px;
+    min-height: calc(100vh - 120px);
+  }
+}
+
+@media screen and (min-width: 1400px) {
+    .link_container .link_content {
+    padding-top: 0px;
+    overflow-x: hidden;
+    margin: 0 100px;
+    min-height: calc(100vh - 120px);
+  }
+}
+
+@media screen and (min-width: 1720px) {
+    .link_container .link_content {
+    padding-top: 0px;
+    overflow-x: hidden;
+    margin: 0 auto;
+    width: 1520px;
+    min-height: calc(100vh - 120px);
+  }
+}
+
+.queryform {
+    border: 1px solid #d9d9d9;
+    .ant-row {
+        display: flex;
+        .ant-col {
+            border-bottom: 1px solid #d9d9d9;
+            display: flex;
+        }
+    }
+    .ant-row:last-child {
+        .ant-col {
+            border-bottom: 0px;
+        }
+    }
+
+    .formfield {
+        display: flex;
+        min-height: 42px;
+        background-color: #F2F2F2;
+        span.fieldlabel {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            min-height: 42px;
+            text-align: right;
+        }
+        .fieldcontent {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            min-height: 42px;
+            background-color: white;
+            padding-left: 5px;
+            div.displaycontent {
+                flex: 1;
+                position: relative;
+                vertical-align: middle;
+            }
+            .errormsg {
+                font-size: 20px;
+                margin-left: 5px;
+                top: 10px;
+            }
+            .ant-select-selection {
+                border-top-width : 1px;
+            }
+            .textCount{
+                position: absolute;
+                right: 125px;
+                bottom: 0px;
+                opacity: .5;
+            }
+        }
+    }
+    .forminput,.formdate {
+        .fieldcontent > .ant-input {
+            max-width: 90%;
+        }
+        .fieldcontent > .ant-input-group {
+            max-width: 90%;
+            margin: 5px 0px;
+        }
+        .fieldcontent > .ant-input-number {
+            max-width: 90%;
+        }
+        .fieldcontent > .displaycontent {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    }
+    .formflex {
+        flex: 1;
+    }
+    .formtable {
+        flex:1;
+        width: 100%;
+        .querytable {
+            flex: 1;
+            .ant-table-body {
+                margin: 0px!important;
+            }
+        }
+    }
+    .formdivider {
+        .fieldcontent {
+            padding-left: "32px";
+            height: "48px";
+            line-height: "48px";
+            font-size: "16px";
+        }
+    }
+    .flownum {
+        .fieldcontent > .ant-input-group-wrapper {
+            width: 90%;
+            vertical-align: middle;
+        }
+    }
+
+    .vformfield.formtable {
+        .fieldcontent {
+            padding: 0px;
+        }
+    }
+
+    .ant-tabs {
+        .ant-tabs-bar {
+            margin-bottom: 0px;
+        }
+    }
+}
+
+.formtexteditor {
+    font-family: '宋体';
+    font-size: 18px;
+    color: #000;
+    table.cke_show_border {
+        thead, tbody, tfoot{
+            tr {
+                th, td {
+                    border: #d3d3d3 1px dotted;
+                }
+            }
+        }
+    }
+    ol {
+        list-style: decimal;
+    }
+    ul {
+        list-style: outside;
+    }
+}
+
+.queryform.noborder {
+    border: 0px;
+}
+
+.queryform .ant-row .queryform {
+    flex: 1;
+}
+
+.print {
+    .queryform {
+        .formfield{
+            background-color: #FFF;
+        }
+
+        .ant-row{
+            .ant-col {
+                padding: 2px;
+            }
+            .ant-col:not(:last-child) {
+                border-right: 1px solid #d9d9d9;
+            }
+        }
+    }
+}
+
+.querytable {
+    .ant-table-small {
+        .ant-table-content{
+            margin: 0px;
+            table {
+                .ant-table-thead {
+                    background-color: #f5f5f5;
+                }
+                .ant-table-tbody {
+                    tr {
+                        td {
+                            padding: 0px 0px 0px 5px!important;
+                            line-height: 32px;
+                            .ant-btn-link {
+                                color: #0962c1;
+                                background-color: transparent;
+                                border-color: transparent;
+                                box-shadow: none;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .querytablebar {
+        min-height: 44px;
+        line-height: 44px;
+        border: 1px solid #ebebeb;
+        border-bottom: 0px;
+        .querytabletoolbar{
+            float: right;
+            .ant-btn {
+                margin: 6px 6px 6px 0px;
+                background-color: white;
+                span {
+                    color:#3259C3;
+                }
+            }
+        }
+    }
+
+    ul.ant-table-pagination {
+        width: 100%;
+        .ant-pagination-total-text {
+            float: right;
+        }
+    }
+}
+
+.vformfield {
+    display: flex;
+    flex-direction: column;
+    span.fieldlabel {
+        flex: 1;
+        text-align: left;
+    }
+    .fieldcontent {
+        flex: 2;
+        position: relative;
+        .errormsg {
+            font-size: 20px;
+            margin-left: 5px;
+            top: 10px;
+        }
+    }
+}
+.allStaff {
+    .ant-tree {
+        li {padding: 0px}
+    }
+}
+.selectedStaff {
+    padding: 8px;
+    .rightItem {
+        width        : 100%;
+        border-radius: 4px;
+        border       : 1px solid #D9D9D9;
+        margin-bottom: 8px;
+        height       : 32px;
+        display      : flex;
+        align-items  : center;
+
+        .text {
+            overflow        : hidden;
+            text-overflow   : ellipsis;
+            -o-text-overflow: ellipsis;
+            white-space     : nowrap;
+            flex: 1;
+            padding-left: 8px;
+        }
+
+        .icon {
+            width      : 32px;
+            height     : 32px;
+            padding    : 8px;
+            cursor     : pointer;
+            display    : flex;
+            align-items: center;
+        }
+    }
+}
+
+.modal {
+    :global {
+        .ant-modal-header {
+            background-color: #F5F5F5;
+            padding: 8px 24px;
+            border-bottom: 0;
+        }
+    }
+}
