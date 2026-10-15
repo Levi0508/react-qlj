@@ -66,6 +66,12 @@ class CustomForm extends React.Component {
     this.fileManageRef = React.createRef();
     this.fxqSpecialRef = React.createRef(); // 添加 FxqSpecial 组件的 ref
     this.pdfRef = React.createRef();  // 添加PDF导出
+    // fxqkhdy / fxqkhqr 左右布局的右侧内容区；其余节点用 normalRightPanelRef
+    this.fxqkhRightPanelRef = React.createRef();
+    this.normalRightPanelRef = React.createRef();
+    this.activeScrollHandler = null;
+    this.activeScrollContainer = null;
+    this.scrollRafId = null;
   }
 
   /**
@@ -313,14 +319,102 @@ class CustomForm extends React.Component {
     }
   }
 
+  // 在当前滚动容器内查找锚点（避免 document.getElementById 命中错误节点）
+  findSectionElement = (container, value) => {
+    if (!container || !value) return null;
+    return container.querySelector(`[id="${value}"]`);
+  }
+
+  // 相对滚动容器计算目标位置（offsetTop / scrollIntoView 在嵌套布局下会滚错或不滚）
+  getSectionScrollTop = (container, element, offset = 10) => {
+    if (!container || !element) return 0;
+    const top =
+      element.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop;
+    return Math.max(0, top - offset);
+  }
+
   // 子导航点击处理
   handleSubNavClick = (value) => {
     this.setState({ activeSubNav: value });
-    const element = document.getElementById(value);
+    const container = this.getCurrentScrollContainer();
+    if (!container) return;
+    const element = this.findSectionElement(container, value);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      container.scrollTo({
+        top: this.getSectionScrollTop(container, element),
+        behavior: 'smooth',
+      });
     }
+  }
 
+  // 获取当前活跃的滚动容器
+  // 注意：fxqkhdy / fxqkhqr 共用左侧布局和 fxqkhRightPanelRef
+  getCurrentScrollContainer = () => {
+    const { curNode, activeTopTab } = this.state;
+    if (activeTopTab !== 'basic') return null;
+    if (curNode?.nodeCode === 'fxqkhdy' || curNode?.nodeCode === 'fxqkhqr') {
+      return this.fxqkhRightPanelRef.current;
+    }
+    return this.normalRightPanelRef.current;
+  }
+
+  // 获取当前可用的子导航列表
+  getCurrentSubNavList = () => {
+    const { basicInfo } = this.state;
+    const organFlag = basicInfo?.organ_flag || '1';
+    return organFlag === '1'
+      ? [
+        { value: 'basicInfo' },
+        { value: 'fxqSpecial' },
+        { value: 'LegalRep' },
+        { value: 'controllingShareholder' },
+        { value: 'actualController' },
+        { value: 'authorizedRep' },
+        { value: 'beneficialOwner' },
+        { value: 'businessRelation' }
+      ]
+      : [
+        { value: 'basicInfo' },
+        { value: 'fxqSpecial' },
+        { value: 'businessRelation' }
+      ];
+  }
+
+  // 根据滚动位置计算当前激活的子导航
+  updateActiveSubNavByScroll = () => {
+    const container = this.getCurrentScrollContainer();
+    if (!container) return;
+    const { activeSubNav } = this.state;
+    const subNavList = this.getCurrentSubNavList();
+    const probeTop = container.scrollTop + 20;
+
+    let matched = subNavList[0]?.value || null;
+    for (const item of subNavList) {
+      const element = this.findSectionElement(container, item.value);
+      if (!element) continue;
+      const elementTop = this.getSectionScrollTop(container, element, 0);
+      if (elementTop <= probeTop) {
+        matched = item.value;
+      } else {
+        break;
+      }
+    }
+    if (matched && matched !== activeSubNav) {
+      this.setState({ activeSubNav: matched });
+    }
+  }
+
+  // 重新附加滚动监听器（等待DOM稳定后）
+  scheduleAttachScrollListener = () => {
+    if (this._attachScheduled) return;
+    this._attachScheduled = true;
+    requestAnimationFrame(() => {
+      this._attachScheduled = false;
+      this.attachScrollListener();
+      this.updateActiveSubNavByScroll();
+    });
   }
 
   // 顶部标签页切换
@@ -535,78 +629,46 @@ class CustomForm extends React.Component {
     message.success(`开始下载: ${file.name}`);
   }
 
-  // 监听滚动事件，更新活动子导航和导航栏位置
+  // 监听滚动事件，更新活动子导航（监听右侧内容容器，而不是 window）
   setupScrollListener = () => {
-    const handleScroll = () => {
-      const { activeTopTab, activeSubNav, navTop, basicInfo } = this.state;
-      const scrollY = window.scrollY;
-
-      // 计算导航栏的动态top值
-      // 初始值为225px，当滚动超过225px时，导航栏向上移动，直到顶部到达窗口边缘
-      const newNavTop = Math.max(0, 230 - scrollY);
-
-      // 只在客户基本信息详情页面时处理导航相关逻辑
-      if (activeTopTab === 'basic') {
-        // 更新导航栏位置
-        if (navTop !== newNavTop) {
-          this.setState({ navTop: newNavTop });
-        }
-
-        // 根据客户类型选择子导航列表
-        const organFlag = basicInfo?.organ_flag || '1';
-        const subNavList = organFlag === '1'
-          ? [
-            { value: 'basicInfo' },
-            { value: 'fxqSpecial' },
-            { value: 'LegalRep' },
-            { value: 'controllingShareholder' },
-            { value: 'actualController' },
-            { value: 'authorizedRep' },
-            { value: 'beneficialOwner' },
-            { value: 'businessRelation' }
-          ]
-          : [
-            { value: 'basicInfo' },
-            { value: 'fxqSpecial' },
-            { value: 'businessRelation' }
-          ];
-
-        for (const item of subNavList) {
-          const element = document.getElementById(item.value);
-          if (element) {
-            const rect = element.getBoundingClientRect();
-            const offset = Math.max(20, newNavTop + 20); // 动态调整偏移量
-
-            if (rect.top <= offset && rect.bottom >= offset) {
-              // 只有当激活状态发生变化时才更新
-              if (activeSubNav !== item.value) {
-                this.setState({ activeSubNav: item.value });
-              }
-              break;
-            }
-          }
-        }
-      }
+    const listener = () => {
+      if (this.scrollRafId) return;
+      this.scrollRafId = requestAnimationFrame(() => {
+        this.scrollRafId = null;
+        this.updateActiveSubNavByScroll();
+      });
     };
-
-    // 使用节流优化滚动性能
-    let throttleTimer = null;
-    const throttledHandleScroll = () => {
-      if (!throttleTimer) {
-        throttleTimer = setTimeout(() => {
-          handleScroll();
-          throttleTimer = null;
-        }, 16); // 约60fps的更新频率
-      }
-    };
-
-    window.addEventListener('scroll', throttledHandleScroll);
+    this.activeScrollHandler = listener;
+    this.attachScrollListener();
     return () => {
-      window.removeEventListener('scroll', throttledHandleScroll);
-      if (throttleTimer) {
-        clearTimeout(throttleTimer);
+      this.detachScrollListener();
+      if (this.scrollRafId) {
+        cancelAnimationFrame(this.scrollRafId);
+        this.scrollRafId = null;
       }
     };
+  }
+
+  // 将滚动监听从旧容器迁移到新容器
+  attachScrollListener = () => {
+    const newContainer = this.getCurrentScrollContainer();
+    if (newContainer === this.activeScrollContainer) return;
+    if (this.activeScrollContainer && this.activeScrollHandler) {
+      this.activeScrollContainer.removeEventListener('scroll', this.activeScrollHandler);
+    }
+    if (newContainer && this.activeScrollHandler) {
+      newContainer.addEventListener('scroll', this.activeScrollHandler, { passive: true });
+      this.activeScrollContainer = newContainer;
+    } else {
+      this.activeScrollContainer = null;
+    }
+  }
+
+  detachScrollListener = () => {
+    if (this.activeScrollContainer && this.activeScrollHandler) {
+      this.activeScrollContainer.removeEventListener('scroll', this.activeScrollHandler);
+    }
+    this.activeScrollContainer = null;
   }
 
   componentDidMount() {
@@ -680,6 +742,13 @@ class CustomForm extends React.Component {
     if (clientId && formInitialized && (!dataLoaded || clientId !== prevState.clientId)) {
       this.loadClientData(clientId);
     }
+    if (
+      this.state.curNode?.nodeCode !== prevState.curNode?.nodeCode ||
+      this.state.activeTopTab !== prevState.activeTopTab ||
+      this.state.basicInfo?.organ_flag !== prevState.basicInfo?.organ_flag
+    ) {
+      this.scheduleAttachScrollListener();
+    }
   }
 
   componentWillUnmount() {
@@ -718,9 +787,15 @@ class CustomForm extends React.Component {
     // 先切换到客户基本信息详情tab
     this.setState({ activeTopTab: 'basic' }, () => {
       setTimeout(() => {
-        const element = document.getElementById(elementId);
+        this.scheduleAttachScrollListener();
+        const container = this.getCurrentScrollContainer();
+        if (!container) return;
+        const element = this.findSectionElement(container, elementId);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          container.scrollTo({
+            top: this.getSectionScrollTop(container, element),
+            behavior: 'smooth',
+          });
           // 高亮效果
           element.style.transition = 'box-shadow 0.3s ease';
           element.style.boxShadow = '0 0 10px 2px rgba(255, 77, 79, 0.5)';
@@ -728,7 +803,7 @@ class CustomForm extends React.Component {
             element.style.boxShadow = '';
           }, 2000);
         }
-      }, 100);
+      }, 150);
     });
   }
 
@@ -1347,13 +1422,17 @@ class CustomForm extends React.Component {
                     </div>
 
                     {/* 右侧内容 */}
-                    <div className="right-panel" style={{
+                    <div
+                      ref={this.fxqkhRightPanelRef}
+                      className="right-panel"
+                      style={{
                       flex: '1',
                       minWidth: 0,
                       padding: '23px 20px',
                       height: '100%',
                       overflowY: 'auto',
-                      overflowX: 'hidden'
+                      overflowX: 'hidden',
+                      position: 'relative',
                     }}>
                       {/* 客户基本信息 */}
                       <div id="basicInfo" style={{ scrollMarginTop: `${navTop + 10}px` }}>
@@ -1609,13 +1688,17 @@ class CustomForm extends React.Component {
                   </div>
 
                   {/* 右侧内容 */}
-                  <div className="right-panel" style={{
+                  <div
+                    ref={this.normalRightPanelRef}
+                    className="right-panel"
+                    style={{
                     flex: '1',
                     minWidth: 0,
                     padding: '20px',
                     height: '100%',
                     overflowY: 'auto',
-                    overflowX: 'hidden'
+                    overflowX: 'hidden',
+                    position: 'relative',
                   }}>
                     {/* 客户基本信息 */}
                     <div id="basicInfo" style={{ scrollMarginTop: `${navTop + 10}px` }}>
