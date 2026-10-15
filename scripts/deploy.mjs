@@ -377,12 +377,14 @@ const timeStamp = (d = new Date()) => {
 
 /** 从目标绝对路径拆出父目录与文件夹名，如 /data/app/ibcm_front/ibcm-flow-ui/ → parent + name */
 const splitTarget = (targetFolder) => {
-  const trimmed = trimSlash(targetFolder)
-  const idx = trimmed.lastIndexOf('/')
+  // 只去尾部 /，保留开头 /，否则绝对路径会变成相对路径被解析到进程 cwd（如 BES bin 下）
+  const normalized = String(targetFolder).replace(/\/+$/, '')
+  if (!normalized.startsWith('/')) throw new Error(`上传目标必须是绝对路径: ${targetFolder}`)
+  const idx = normalized.lastIndexOf('/')
   if (idx <= 0) throw new Error(`无法解析上传目标路径: ${targetFolder}`)
   return {
-    parent: folderOf(trimmed.slice(0, idx)),
-    name: trimmed.slice(idx + 1),
+    parent: folderOf(normalized.slice(0, idx)),
+    name: normalized.slice(idx + 1),
   }
 }
 
