@@ -287,23 +287,42 @@ class CustomForm extends React.Component {
     }
   }
 
+  // 在当前滚动容器内查找锚点（避免 document.getElementById 命中错误节点）
+  findSectionElement = (container, value) => {
+    if (!container || !value) return null;
+    return container.querySelector(`[id="${value}"]`);
+  }
+
+  // 相对滚动容器计算目标位置（offsetTop 会相对外层 .App，导致滚错或不滚）
+  getSectionScrollTop = (container, element, offset = 10) => {
+    if (!container || !element) return 0;
+    const top =
+      element.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop;
+    return Math.max(0, top - offset);
+  }
+
   // 子导航点击处理
   handleSubNavClick = (value) => {
     this.setState({ activeSubNav: value });
     const container = this.getCurrentScrollContainer();
     if (!container) return;
-    const element = document.getElementById(value);
+    const element = this.findSectionElement(container, value);
     if (element) {
-      const offsetTop = Math.max(0, element.offsetTop - 30);
-      container.scrollTo({ top: offsetTop, behavior: 'smooth' });
+      container.scrollTo({
+        top: this.getSectionScrollTop(container, element),
+        behavior: 'smooth',
+      });
     }
   }
 
   // 获取当前活跃的滚动容器
+  // 注意：hgrysh / xmzqr 共用左侧布局和 hgryshRightPanelRef
   getCurrentScrollContainer = () => {
     const { curNode, activeTopTab } = this.state;
     if (activeTopTab !== 'basic') return null;
-    if (curNode?.nodeCode === 'hgrysh') {
+    if (curNode?.nodeCode === 'hgrysh' || curNode?.nodeCode === 'xmzqr') {
       return this.hgryshRightPanelRef.current;
     }
     return this.normalRightPanelRef.current;
@@ -337,14 +356,13 @@ class CustomForm extends React.Component {
     if (!container) return;
     const { activeSubNav } = this.state;
     const subNavList = this.getCurrentSubNavList();
-    const scrollTop = container.scrollTop;
-    const probeTop = scrollTop + 20;
+    const probeTop = container.scrollTop + 20;
 
     let matched = subNavList[0]?.value || null;
     for (const item of subNavList) {
-      const element = document.getElementById(item.value);
+      const element = this.findSectionElement(container, item.value);
       if (!element) continue;
-      const elementTop = element.offsetTop;
+      const elementTop = this.getSectionScrollTop(container, element, 0);
       if (elementTop <= probeTop) {
         matched = item.value;
       } else {
@@ -737,12 +755,15 @@ class CustomForm extends React.Component {
   scrollToElement = (elementId) => {
     this.setState({ activeTopTab: 'basic' }, () => {
       setTimeout(() => {
+        this.scheduleAttachScrollListener();
         const container = this.getCurrentScrollContainer();
         if (!container) return;
-        const element = document.getElementById(elementId);
+        const element = this.findSectionElement(container, elementId);
         if (element) {
-          const offsetTop = Math.max(0, element.offsetTop - 30);
-          container.scrollTo({ top: offsetTop, behavior: 'smooth' });
+          container.scrollTo({
+            top: this.getSectionScrollTop(container, element),
+            behavior: 'smooth',
+          });
           element.style.transition = 'box-shadow 0.3s ease';
           element.style.boxShadow = '0 0 10px 2px rgba(255, 77, 79, 0.5)';
           setTimeout(() => {
@@ -1382,7 +1403,8 @@ class CustomForm extends React.Component {
                       padding: '23px 20px',
                       height: '100%',
                       overflowY: 'auto',
-                      overflowX: 'hidden'
+                      overflowX: 'hidden',
+                      position: 'relative',
                     }}>
                       {/* 客户基本信息 */}
                       <div id="basicInfo" style={{ scrollMarginTop: `${navTop + 10}px` }}>
@@ -1649,7 +1671,8 @@ class CustomForm extends React.Component {
                       padding: '20px',
                       height: '100%',
                       overflowY: 'auto',
-                      overflowX: 'hidden'
+                      overflowX: 'hidden',
+                      position: 'relative',
                     }}>
                     {/* 客户基本信息 */}
                     <div id="basicInfo" style={{ scrollMarginTop: `${navTop + 10}px` }}>
