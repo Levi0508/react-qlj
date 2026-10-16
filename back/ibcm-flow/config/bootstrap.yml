@@ -1,0 +1,13 @@
+#eureka:
+#  instance:
+#    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+#    preferIpAddress: true
+#    health-check-url-path: /actuator/health
+#    lease-renewal-interval-in-seconds: 10
+#    lease-expiration-duration-in-seconds: 30
+#  client:
+#    registryFetchIntervalSeconds: 5
+#    healthcheck:
+#      enabled: true
+#    service-Url:
+#      defaultZone: http://dts:Dts123@10.176.124.141:8001/eureka

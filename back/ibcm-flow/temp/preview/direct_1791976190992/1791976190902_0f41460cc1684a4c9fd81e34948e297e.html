@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本预览 - 1791976190902_0f41460cc1684a4c9fd81e34948e297e.txt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filename {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .fileinfo {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="filename">📄 1791976190902_0f41460cc1684a4c9fd81e34948e297e.txt</div>
+        <div class="fileinfo">文本文件 • 27.65 KB</div>
+    </div>
+    <div class="content">create or replace procedure thjs.p_fxq_cust_report_q(rt_cursor out sys_refcursor, --返回游标结果集
+                                                     --i_projid   in varchar2, --由项目信息查询界面打开时传入
+                                                     i_entname  in varchar2, --新增填报业务人员输入客户名称时传入
+                                                     i_cust_id  in integer, --客户id
+                                                     i_usercode in varchar2, --查询人
+                                                     --i_data_type   in varchar2, --要查询的数据类型：0-草稿 1-正式
+                                                     o_return_msg  out varchar2,
+                                                     o_return_code out integer) is
+  ----------------------------------------------------------------------------------
+  --版    权：GTJA
+  --版    本：1.0.0
+  --开发人员：YLT@GTJA
+  --创建日期：20200624
+  --模块编号：
+  --模块名称：投行反洗钱-反洗钱客户填报，根据【公司名称】或者【统一社会信用代码】进行检索
+  --功能名称：
+  ----------------------------------------------------------------------------------
+  --v101 ylt@gtja 20200724 职业分类选择‘其他’时，保存输入框的值
+  --v102 ylt@gtja 20201029 客户状态要保存至历史表中
+  --v103 ylt@gtja 20201102 填报联系地址分‘省市区县’分开保存
+
+  --==============================================================================
+  --固定变量
+  v_userexp exception; -- 用户定义错
+  v_tradedate    varchar2(8); -- 任务执行时间(业务日期)
+  v_exec_func_id integer default &#39;0&#39;; -- 任务id
+  v_func_own     varchar2(20) default &#39;thjs&#39;; -- 任务归属用户（schema）
+  v_func_name    varchar2(2000) default &#39;p_fxq_cust_report_q&#39;; -- 任务名称(存储过程的名字)
+  v_sqlerrm      varchar2(4000); -- 错误提示信息
+  v_sqlcode      number; -- 错误代码
+  v_sqlerrl      varchar2(4000); -- 错误行号
+  --==============================================================================
+  ---------------------------------------------------------------------------------------
+  --业务变量
+  v_prvlge      integer default 0;
+  v_cust_id     varchar2(100);
+  v_ztgs_count  integer default 0;
+  v_ztgs_name   varchar2(200);
+  v_fk_flag     char(1) default &#39;0&#39;; --反馈结果查看权限标识
+  v_bill_flag   char(1) default &#39;0&#39;; --存托客户EXCEL导入页面查看权限
+  v_rz_cnt_byid integer default 0; --记录根据客户id查询 客户类型为&#39;机构&#39;的客户数量
+  v_zr_cnt_byid integer default 0; --记录根据客户id查询 客户类型为&#39;自然人&#39;的客户数量
+  v_rz_cust_cnt integer default 0; --记录根据客户名称查询 客户类型为&#39;机构&#39;的客户数量
+  v_zr_cust_cnt integer default 0; --记录根据客户名称查询 客户类型为&#39;自然人&#39;的客户数量
+  v_cnt_byid    integer default 0;
+  v_cust_cnt    integer default 0;
+  --=============================================================
+  -- 业务处理过程
+  --=============================================================
+
+begin
+
+  v_tradedate := to_char(sysdate, &#39;yyyyMMdd&#39;);
+
+  --v102+ start
+  insert into thjs.tb_exec_log
+    (log_id, proc_name, proc_param, exec_time)
+  values
+    (thjs.tb_exec_log_id_seq.nextval,
+     &#39;p_fxq_cust_report_q&#39;,
+     &#39;i_entname:&#39; || i_entname || &#39; -&#39; || &#39;i_cust_id:&#39; || i_cust_id || &#39; -&#39; ||
+     &#39;i_usercode:&#39; || i_usercode,
+     sysdate);
+  commit;
+  --v102+ end
+
+  --检查反洗钱客户是否具有填报权限，无权限直接返回
+  select count(1)
+    into v_prvlge
+    from basic_th.wb_user u
+   inner join basic_th.wb_user_role r
+      on u.user_id = r.user_id
+     and r.role_id in (&#39;fxq_cust_wh&#39;, &#39;fxqtb-th&#39;, &#39;fxqgl&#39;) --反洗钱客户维护人，投行反洗钱客户填报人，反洗钱客户管理员
+   where u.user_name = i_usercode;
+
+  if v_prvlge = 0 then
+    open rt_cursor for
+      select &#39;0&#39; as user_flag from dual;
+    o_return_code := -1;
+    o_return_msg  := &#39;当前用户无反洗钱客户填报权限，请联系合规管理员！&#39;;
+    return;
+  end if;
+  --检查是否保存过此客户
+  /*select count(1)
+    into v_rz_cnt_byid
+    from thjs.tb_fxq_cust_rz r
+   where r.cust_id = i_cust_id;
+
+  select count(1)
+    into v_zr_cnt_byid
+    from thjs.tb_fxq_cust_zr r
+   where r.cust_id = i_cust_id;*/
+   
+  select count(1)
+    into v_cnt_byid
+    from amldata.t_th_client_info r
+   where r.client_id = i_cust_id;
+
+  --反洗钱风险等级划分及筛查结果查询权限
+  select case
+           when count(1) &gt; 0 then
+            &#39;1&#39;
+           else
+            &#39;0&#39;
+         end
+    into v_fk_flag
+    from basic_th.wb_user u
+   inner join basic_th.wb_user_role r
+      on u.user_id = r.user_id
+     and r.role_id = &#39;fxqrisk-th&#39;
+   where u.user_name = i_usercode;
+
+  --存托客户EXCEL导入页面查看权限
+  select count(1)
+    into v_bill_flag
+    from dual
+   where instr(&#39;admin,chenzhengkuan,zhangqilong,&#39; || i_usercode, i_usercode) &gt; 0;
+
+  --如果根据传入的i_cust_id在反洗钱客户表中查询不到对应客户
+  if v_rz_cnt_byid = 0 and v_zr_cnt_byid = 0 then
+    --检查该客户名称是否存在反洗钱客户主表中
+    if i_entname is not null then
+      /*--根据客户名称查询客户类型为&#39;机构&#39;的客户信息
+      select count(1)
+        into v_rz_cust_cnt
+        from thjs.tb_fxq_cust_rz r
+        left join thjs.tb_dict_entry d
+          on d.entry_code = &#39;INDUSTRY_TYPE&#39;
+         and d.entry_value = r.industry_id
+       where r.cust_name = i_entname
+      \*and r.status = &#39;0&#39;*\ --v102-
+      ;
+      --根据客户名称查询客户类型为&#39;自然人&#39;的客户信息
+      select count(1)
+        into v_zr_cust_cnt
+        from thjs.tb_fxq_cust_zr r
+       where r.cust_name = i_entname
+      \*and r.status = &#39;0&#39;*\ --v102-
+      ;*/
+      
+      select count(1)
+        into v_cust_cnt
+        from amldata.t_th_client_info r
+       where r.client_name = i_entname;
+    
+    end if;
+  
+    --如果根据客户名称查询到该客户不存在反洗钱客户主表中
+    if v_cust_cnt /*v_rz_cust_cnt = 0 and v_zr_cust_cnt = 0*/ then
+      select thjs.seq_fxq_custid.nextval into v_cust_id from dual;
+    
+      --未保存过此客户信息
+      --第一次填报，通过所选项目id 查询工商主体表，默认展示相关信息。依次通过客户名称或工商注册号，统一社会信用代码进行匹配查询
+      if i_entname is not null then
+      
+        --首先根据传入的客户名称与企业名称进行第一次匹配
+        select count(1)
+          into v_ztgs_count
+          from ztgs.enterprisebaseinfocollect_v3 e
+         where e.entname like i_entname || &#39;%&#39;;
+      
+        --如果根据客户名称与企业名称没匹配上，则将传入的客户名称与注册号进行再一次匹配
+        /*if v_ztgs_count = 0 then
+        select count(1)
+          into v_ztgs_count
+          from edw00.pty_main_info e
+         where e.reg_no = i_entname;*/
+      
+        --如果根据 传入的客户名称与注册号 再一次匹配仍未查询到对应的客户数据，
+        --则根据 传入的客户名称与统一社会信用代码进行三次匹配
+        if v_ztgs_count = 0 then
+          select count(1)
+            into v_ztgs_count
+            from ztgs.enterprisebaseinfocollect_v3 e
+           where e.credit_code = i_entname;
+        
+          --如果根据 传入的客户名称与统一社会信用代码 三次匹配仍未查询到对应的客户数据，
+          --那么，给 v_ztgs_name 置空
+          if v_ztgs_count = 0 then
+            v_ztgs_name := &#39;&#39;;
+          else
+            --如果根据 传入的客户名称与统一社会信用代码 三次匹配查询到对应的客户数据，将对应企业名称值返回给 v_ztgs_name
+            select e.entname
+              into v_ztgs_name
+              from ztgs.enterprisebaseinfocollect_v3 e
+             where e.credit_code = i_entname;
+          end if;
+        
+          --如果根据 传入的客户名称与注册号 匹配到了对应客户数据，将对应企业名称值返回给 v_ztgs_name
+          /* else
+            select e.comp_name
+              into v_ztgs_name
+              from edw00.pty_main_info e
+             where e.reg_no = i_entname;
+          end if;*/
+          --根据传入的客户名称直接查询到对应客户数据，则直接将查询到的企业名称值返回给 v_ztgs_name
+        elsif v_ztgs_count = 1 then
+          select e.entname
+            into v_ztgs_name
+            from ztgs.enterprisebaseinfocollect_v3 e
+           where e.entname like i_entname || &#39;%&#39;;
+        
+          --否则，如果根据传入的客户名称与工商主体表中的企业名称匹配查询到多条数据时，直接将入参的客户名称返回给 v_ztgs_name
+        else
+          v_ztgs_name := i_entname;
+        end if;
+      
+        --根据处理后得到的v_ztgs_name查询对应的企业基本信息
+        open rt_cursor for
+          select nvl(r.client_id, v_cust_id) as cust_id, --客户id
+                 nvl(e.entname, i_entname) as cust_name, --客户名称
+                 e.regorg_prov as province, --省
+                 e.regorg_city as city, --市
+                 e.regorg_county as district, --区
+                 regexp_replace(e.dom,
+                                e.regorg_prov || &#39;|&#39; || e.regorg_city || &#39;|&#39; ||
+                                e.regorg_county) as office_adr,
+                 --e.address as office_adr, --办公住所exist
+                 &#39;0&#39; as industry_type, --行业分类
+                 e.industryphy_name as industry_name, --行业分类名称（或其他）
+                 to_char(e.opscope) as busi_scope, --经营范围
+                 decode(e.regcap,
+                        null,
+                        &#39;&#39;,
+                        kingstar.fn_number_thousandpoint(e.regcap, 4)) as reg_capital, --注册资本金
+                 nvl(d.entry_value, &#39;0&#39;) as reg_currency, --注册资本金币种
+                 &#39;3&#39; as cert_type, --证件类型
+                 e.credit_code as cert_no, --证件号码
+                 &#39;&#39; as cert_startdate, --证照有效起始
+                 &#39;&#39; as cert_enddate, --证照有效截止
+                 e.legal_person as chair_man, --法人代表姓名
+                 &#39;&#39; as chair_birth, --法人出生年月
+                 &#39;0&#39; as chair_certtype, --法人证件类型
+                 &#39;&#39; as chair_certno, --法人证件号码
+                 &#39;&#39; chair_certstart, --法人证照有效起始
+                 &#39;&#39; as chair_certend, --法人证照有效截止
+                 &#39;&#39; as write_date, --填写日期
+                 decode(r.client_id, null, &#39;0&#39;, &#39;1&#39;) as is_exists, --客户信息是否已存在：0 否 1 是
+                 &#39;1&#39; data_type,
+                 &#39;&#39; associatied_date,
+                 &#39;&#39; as remark,
+                 decode(r.client_id, null, &#39;0&#39;, v_fk_flag) as fk_flag,
+                 v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+                 is_depository_cus --是否存托客户  --
+            from dual
+            left join ztgs.enterprisebaseinfocollect_v3 e
+              on e.entname = v_ztgs_name
+            left join amldata.t_th_client_info r
+              on r.client_name = e.entname
+            left join para.t_dict_subentry d
+              on d.entry_no = &#39;CURRENCY_CODE&#39;
+             and instr(&#39;,&#39; || d.comments || &#39;,&#39;,
+                       &#39;,&#39; || e.regcapcur_name || &#39;,&#39;) &gt; 0
+            /*left join thjs.tb_fxq_cust_rz r
+              on r.cust_name = e.entname
+          --and r.status = &#39;0&#39;--v102-
+            left join thjs.tb_dict_entry d
+              on d.entry_code = &#39;CURRENCY_CODE&#39;
+             and instr(&#39;,&#39; || d.entry_content_match || &#39;,&#39;,
+                       &#39;,&#39; || e.regcapcur_name || &#39;,&#39;) &gt; 0*/;
+      
+      end if;
+    
+      --如果根据客户名称查询到该客户已经存在反洗钱客户主表中，直接将该反洗钱客户信息查询出来
+    else
+      if v_cust_cnt &gt; 0 then
+          select r.client_id, --客户id-系统唯一ID
+                 r.client_name, --客户名称
+                 r.gender, --性别：男/女
+                 r.nationality, --国籍
+                 r.birthday, --出生年月
+                 r.id_type, --身份证件类型
+                 r.id_no, --证件号码
+                 r.id_begindate, --证件有效期起始
+                 r.id_enddate, --证件有效期截止
+                 r.id_address, --身份证证件地址
+                 --v103+ start
+                 r.province1, --省
+                 r.city1, --市
+                 r.district1, --区县
+                 --v103+ end
+                 r.address, --联系地址
+                 r.tel, --联系电话
+                 r.zipcode, --邮政编码
+                 r.profession_code, --职业分类
+                 r.vocation_name, --职称分类名称（或其他） v101+  --字典
+                 r.position, --职务
+                 r.work_place, --工作单位
+                 r.income, --收入
+                 r.fillin_date, --填写日期
+                 &#39;1&#39; as is_exists, --客户信息是否已存在：0 否 1 是
+                 &#39;1&#39; date_type, --数据类型：0-草稿 1-正式数据
+                 r.associated_date, --建议业务关系日期
+                 r.remark, --填报备注
+                 r.province,
+                 r.city,
+                 r.district,
+                 r.office_address, --办公住所
+                 r.industry_type, --行业分类
+                 d.comments, --行业分类名称（或其他）  --字典
+                 r.busi_scope, --经营范围
+                 decode(r.register_fund,
+                        null,
+                        &#39;&#39;,
+                        kingstar.fn_number_thousandpoint(r.register_fund, 4)) as register_fund, --注册资本金
+                 r.register_money_type, --注册资本金币种
+                 a.related_name, --法人代表姓名
+                 a.birthday, --法人出生年月
+                 a.id_type, --法人证件类型
+                 a.id_no, --法人证件号码
+                 a.id_begindate, --法人证照有效起始
+                 a.id_enddate, --法人证照有效截止
+                 v_fk_flag as fk_flag,
+                 v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+                 &#39;&#39; is_depository_cus --是否存托客户
+            from amldata.t_th_client_info r --thjs.tb_fxq_cust_zr r
+            left join amldata.t_th_relat_info a
+              on a.client_id = r.client_id
+             and a.related_type = &#39;1&#39;
+            left join para.t_dict_subentry d
+              on d.entry_no = &#39;INDUSTRY_TYPE&#39;
+             and d.subentry = r.industry_id
+           where r.client_name = i_entname;
+      end if;
+      
+      /*--如果根据客户名称在【反洗钱-客户基本信息表（自然人）】返回有对应数据，则直接查询返回【反洗钱-客户基本信息表（自然人）】对应数据
+      if v_zr_cust_cnt &gt; 0 then
+        open rt_cursor for
+          select r.client_id, --客户id-系统唯一ID
+                 r.client_name, --客户名称
+                 r.gender, --性别：男/女
+                 r.nationality, --国籍
+                 r.birthday, --出生年月
+                 r.id_type, --身份证件类型
+                 r.id_no, --证件号码
+                 r.id_begindate, --证件有效期起始
+                 r.id_enddate, --证件有效期截止
+                 r.id_address, --身份证证件地址
+                 --v103+ start
+                 r.province1, --省
+                 r.city1, --市
+                 r.district1, --区县
+                 --v103+ end
+                 r.address, --联系地址
+                 r.tel, --联系电话
+                 r.zipcode, --邮政编码
+                 r.profession_code, --职业分类
+                 r.vocation_name, --职称分类名称（或其他） v101+  --字典
+                 r.position, --职务
+                 r.work_place, --工作单位
+                 r.income, --收入
+                 r.fillin_date, --填写日期
+                 &#39;1&#39; as is_exists, --客户信息是否已存在：0 否 1 是
+                 &#39;1&#39; date_type, --数据类型：0-草稿 1-正式数据
+                 r.associated_date, --建议业务关系日期
+                 r.remark, --填报备注
+                 v_fk_flag as fk_flag,
+                 v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+                 &#39;&#39; is_depository_cus --是否存托客户
+            from amldata.t_th_client_info r --thjs.tb_fxq_cust_zr r
+           where r.client_name = i_entname
+          \*and r.status = &#39;0&#39;*\ --v102-
+          ;
+      elsif v_rz_cust_cnt &gt; 0 then
+        --如果根据客户名称在【反洗钱-客户基本信息表（融资端）】返回有对应数据，则直接查询返回【反洗钱-客户基本信息表（融资端）】对应数据
+        open rt_cursor for
+          select r.client_id as cust_id, --客户id
+                 r.client_name, --客户名称
+                 r.province,
+                 r.city,
+                 r.district,
+                 r.office_address, --办公住所
+                 r.industry_type, --行业分类
+                 d.comments, --行业分类名称（或其他）  --字典
+                 r.busi_scope, --经营范围
+                 decode(r.register_fund,
+                        null,
+                        &#39;&#39;,
+                        kingstar.fn_number_thousandpoint(r.register_fund, 4)) as register_fund, --注册资本金
+                 r.register_money_type, --注册资本金币种
+                 r.id_type, --证件类型
+                 r.id_no, --证件号码
+                 r.id_begindate, --证照有效起始
+                 r.id_enddate, --证照有效截止
+                 a.related_name, --法人代表姓名
+                 a.birthday, --法人出生年月
+                 a.id_type, --法人证件类型
+                 a.id_no, --法人证件号码
+                 a.id_begindate, --法人证照有效起始
+                 a.id_enddate, --法人证照有效截止
+                 r.fillin_date, --填写日期
+                 &#39;1&#39; as is_exists, --客户信息是否已存在：0 否 1 是
+                 &#39;1&#39; data_type,
+                 r.associated_date,
+                 r.remark,
+                 v_fk_flag as fk_flag,
+                 v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+                 is_depository_cus --是否存托客户
+            from amldata.t_th_client_ifno r
+            left join amldata.t_th_relat_info a
+              on a.client_id = r.client_id
+             and a.related_type = &#39;1&#39;
+            left join para.t_dict_subentry d
+              on d.entry_code = &#39;INDUSTRY_TYPE&#39;
+             and d.entry_value = r.industry_id
+            \*from thjs.tb_fxq_cust_rz r
+            left join thjs.tb_dict_entry d
+              on d.entry_code = &#39;INDUSTRY_TYPE&#39;
+             and d.entry_value = r.industry_id*\
+           where r.client_name = i_entname
+          \*and r.status = &#39;0&#39;*\ --v102-
+          ;
+      end if;*/
+    end if;
+  
+    --如果根据传入的i_cust_id在反洗钱客户表中查询到对应客户，直接根据i_cust_id查询反洗钱客户主表将该反洗钱客户信息返回
+  else
+    if v_cnt_byid &gt; 0 then 
+        select r.client_id, --客户id-系统唯一ID
+               r.client_name, --客户名称
+               r.gender, --性别：男/女
+               r.nationality, --国籍
+               r.birthday, --出生年月
+               r.id_type, --身份证件类型
+               r.id_no, --证件号码
+               r.id_begindate, --证件有效期起始
+               r.id_enddate, --证件有效期截止
+               r.id_address, --身份证证件地址
+               --v103+ start
+               r.province1, --省
+               r.city1, --市
+               r.district1, --区县
+               --v103+ end
+               r.address, --联系地址
+               r.tel, --联系电话
+               r.zipcode, --邮政编码
+               r.profession_code, --职业分类
+               r.vocation_name, --职称分类名称（或其他） v101+   --字典
+               r.post, --职务
+               r.work_place, --工作单位
+               r.income, --收入
+               r.fillin_date, --填写日期
+               &#39;1&#39; as is_exists, --客户信息是否已存在：0 否 1 是
+               &#39;1&#39; date_type, --数据类型：0-草稿 1-正式数据
+               r.associated_date, --建议业务关系日期
+               r.remark, --填报备注
+               r.province,
+               r.city,
+               r.district,
+               r.office_address, --办公住所
+               r.industry_type, --行业分类
+               d.comments, --行业分类名称（或其他）
+               r.busi_scope, --经营范围
+               decode(r.register_fund,
+                      null,
+                      &#39;&#39;,
+                      kingstar.fn_number_thousandpoint(r.register_fund, 4)) as register_fund, --注册资本金
+               r.register_money_type, --注册资本金币种
+               a.related_name, --法人代表姓名
+               a.birthday, --法人出生年月
+               a.id_type, --法人证件类型
+               a.id_no, --法人证件号码
+               a.id_begindate, --法人证照有效起始
+               a.id_enddate, --法人证照有效截止
+               v_fk_flag as fk_flag,
+               v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+               &#39;&#39; is_depository_cus --是否存托客户
+          from amldata.t_th_client_info r
+          left join amldata.t_th_relat_info a
+            on r.client_id = a.client_id
+           and a.related_type = &#39;1&#39;
+          left join para.t_dict_subentry d
+            on d.entry_no = &#39;INDUSTRY_TYPE&#39;
+           and d.subentry = r.industry_id
+         where r.client_id = i_cust_id;
+    end if;
+      
+    /*if v_zr_cnt_byid &gt; 0 then
+      open rt_cursor for
+        select r.client_id, --客户id-系统唯一ID
+               r.client_name, --客户名称
+               r.gender, --性别：男/女
+               r.nationality, --国籍
+               r.birthday, --出生年月
+               r.id_type, --身份证件类型
+               r.id_no, --证件号码
+               r.id_begindate, --证件有效期起始
+               r.id_enddate, --证件有效期截止
+               r.id_address, --身份证证件地址
+               --v103+ start
+               r.province1, --省
+               r.city1, --市
+               r.district1, --区县
+               --v103+ end
+               r.address, --联系地址
+               r.tel, --联系电话
+               r.zipcode, --邮政编码
+               r.profession_code, --职业分类
+               r.vocation_name, --职称分类名称（或其他） v101+   --字典
+               r.post, --职务
+               r.work_place, --工作单位
+               r.income, --收入
+               r.fillin_date, --填写日期
+               &#39;1&#39; as is_exists, --客户信息是否已存在：0 否 1 是
+               &#39;1&#39; date_type, --数据类型：0-草稿 1-正式数据
+               r.associated_date, --建议业务关系日期
+               r.remark, --填报备注
+               v_fk_flag as fk_flag,
+               v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+               &#39;&#39; is_depository_cus --是否存托客户
+          from amldata.t_th_client_info r
+         where r.client_id = i_cust_id
+          \*from thjs.tb_fxq_cust_zr r
+         where r.cust_id = i_cust_id*\
+        \*and r.status = &#39;0&#39;*\ --v102-
+        ;
+    elsif v_rz_cnt_byid &gt; 0 then
+      open rt_cursor for
+        select r.client_id as cust_id, --客户id
+               r.client_name, --客户名称
+               r.province,
+               r.city,
+               r.district,
+               r.office_address, --办公住所
+               r.industry_type, --行业分类
+               d.comments, --行业分类名称（或其他）
+               r.busi_scope, --经营范围
+               decode(r.register_fund,
+                      null,
+                      &#39;&#39;,
+                      kingstar.fn_number_thousandpoint(r.register_fund, 4)) as register_fund, --注册资本金
+               r.register_money_type, --注册资本金币种
+               r.id_type, --证件类型
+               r.id_no, --证件号码
+               r.id_begindate, --证照有效起始
+               r.id_enddate, --证照有效截止
+               a.related_name, --法人代表姓名
+               a.birthday, --法人出生年月
+               a.id_type, --法人证件类型
+               a.id_no, --法人证件号码
+               a.id_begindate, --法人证照有效起始
+               a.id_enddate, --法人证照有效截止
+               r.fillin_date, --填写日期
+               &#39;1&#39; as is_exists, --客户信息是否已存在：0 否 1 是
+               &#39;1&#39; date_type,
+               r.associated_date,
+               r.remark,
+               decode(r.cust_biz, &#39;测试&#39;, &#39;&#39;, v_fk_flag) as fk_flag,
+               v_bill_flag as bill_flag, --是否具有存托客户EXCEL导入页面查看权限
+               is_depository_cus --是否存托客户
+          from amldata.t_th_client_info r
+          left join amldata.t_th_relat_info a
+            on r.client_id = a.client_id
+           and a.related_type = &#39;1&#39;
+          left join para.t_dict_subentry d
+            on d.entry_no = &#39;INDUSTRY_TYPE&#39;
+           and d.subentry = r.industry_id
+          \*from thjs.tb_fxq_cust_rz r
+          left join thjs.tb_dict_entry d
+            on d.entry_code = &#39;INDUSTRY_TYPE&#39;
+           and d.entry_value = r.industry_id*\
+         where r.cust_id = i_cust_id
+        \*and r.status = &#39;0&#39;*\ --v102-
+        ;
+    end if;*/
+  end if;
+
+  commit;
+
+  o_return_msg  := &#39;执行成功&#39;;
+  o_return_code := 0;
+
+exception
+  -- 非预定义异常处理
+  when v_userexp then
+    rollback;
+  
+    v_sqlerrm := sqlerrm;
+    v_sqlcode := sqlcode;
+    v_sqlerrl := dbms_utility.format_error_backtrace();
+  
+    hgman.p_write_error_log(i_tradedate    =&gt; v_tradedate,
+                           i_exec_func_id =&gt; v_exec_func_id,
+                           i_func_own     =&gt; v_func_own,
+                           i_func_name    =&gt; v_func_name,
+                           i_occur_time   =&gt; sysdate,
+                           i_sqlerrm      =&gt; v_sqlerrm,
+                           i_sqlcode      =&gt; v_sqlcode,
+                           i_sqlerrl      =&gt; v_sqlerrl);
+    commit;
+    raise;
+    -- 预定义异常处理
+  when others then
+    rollback;
+  
+    v_sqlerrm := sqlerrm;
+    v_sqlcode := sqlcode;
+    v_sqlerrl := dbms_utility.format_error_backtrace();
+  
+    hgman.p_write_error_log(i_tradedate    =&gt; v_tradedate,
+                           i_exec_func_id =&gt; v_exec_func_id,
+                           i_func_own     =&gt; v_func_own,
+                           i_func_name    =&gt; v_func_name,
+                           i_occur_time   =&gt; sysdate,
+                           i_sqlerrm      =&gt; v_sqlerrm,
+                           i_sqlcode      =&gt; v_sqlcode,
+                           i_sqlerrl      =&gt; v_sqlerrl);
+    commit;
+    raise;
+end;
+</div>
+    <div class="stats">
+        📊 文件信息：28309 字节 | 23491 字符 | 610 行
+    </div>
+</body>
+</html>

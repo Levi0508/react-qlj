@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gtja.dts.oaflow.mapper.thfxq.TbProjFlowInstMapper">
+
+    <resultMap id="TbProjFlowInstMap" type="com.gtja.dts.oaflow.pojo.po.thfxq.TbProjFlowInst">
+        <result property="flowCode" column="FLOW_CODE" />
+        <result property="busiDate" column="BUSI_DATE" />
+        <result property="projId" column="PROJID" />
+        <result property="projname" column="PROJNAME" />
+        <result property="checkBatch" column="CHECK_BATCH" />
+        <result property="checkBatchId" column="CHECK_BATCH_ID" />
+        <result property="title" column="TITLE" />
+        <result property="content" column="CONTENT" jdbcType="CLOB" javaType="java.lang.String" />
+        <result property="createTime" column="CREATE_TIME" />
+        <result property="createuser" column="CREATE_USER" />
+        <result property="sendStatus" column="SEND_STATUS" />
+        <result property="sendTime" column="SEND_TIME" />
+        <result property="piid" column="PIID" />
+        <result property="pkId" column="PK_ID" />
+        <result property="createUserId" column="CREATE_USER_ID" />
+        <result property="receiveUserId" column="RECEIVE_USER_ID" />
+        <result property="receiveUserName" column="RECEIVE_USER_NAME" />
+        <result property="receiveDisplayName" column="RECEIVE_DISPLAY_NAME" />
+        <result property="receiveStaffId" column="RECEIVE_STAFF_ID" />
+        <result property="projlistStatus" column="PROJLIST_STATUS" />
+        <result property="errInfo" column="ERR_INFO" />
+        <result property="lockFlag" column="LOCK_FLAG" />
+    </resultMap>
+
+    <select id="selectUnsentByFlowCodes" resultMap="TbProjFlowInstMap">
+        SELECT * FROM (
+        SELECT t.*, ROW_NUMBER() OVER (ORDER BY t.create_time ASC) AS rn
+        FROM thjs.tb_proj_flow_inst t
+        WHERE t.send_status = '0'
+        AND t.flow_code IN
+        <foreach collection="flowCodes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+        ) WHERE rn &lt;= #{limit}
+    </select>
+
+</mapper>

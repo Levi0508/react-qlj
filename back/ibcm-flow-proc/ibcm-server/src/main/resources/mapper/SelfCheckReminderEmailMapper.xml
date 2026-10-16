@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gtja.dts.oaflow.mapper.thfxq.SelfCheckReminderEmailMapper">
+
+    <!-- 查询未发送的催办邮件记录 -->
+    <select id="queryUnsentReminderEmails" resultType="com.gtja.dts.oaflow.pojo.po.thfxq.TbProjFlowInst">
+        SELECT * FROM (
+        SELECT t.*, ROW_NUMBER() OVER (ORDER BY t.create_time DESC) AS rn
+        FROM thjs.tb_proj_flow_inst t
+        WHERE t.flow_code = #{flowCode}
+        AND t.send_status = #{sendStatus}
+        AND (t.lock_flag = '0' OR t.lock_flag IS NULL)
+        ) WHERE rn &lt;= #{page.size}
+        AND rn &gt; (#{page.current} - 1) * #{page.size}
+    </select>
+
+    <!-- 批量查询记录 -->
+    <select id="batchQueryByIds" resultType="com.gtja.dts.oaflow.pojo.po.thfxq.TbProjFlowInst">
+        SELECT * FROM thjs.tb_proj_flow_inst
+        WHERE pk_id IN
+        <foreach collection="pkIds" item="pkId" open="(" separator="," close=")">
+            #{pkId}
+        </foreach>
+    </select>
+
+    <!-- 更新锁定标志（分布式锁） -->
+    <update id="updateLockFlag">
+        UPDATE thjs.tb_proj_flow_inst
+        SET lock_flag = '1'
+        WHERE pk_id = #{pkId}
+        AND lock_flag = '0'
+    </update>
+
+    <!-- 重置锁定标志（释放锁） -->
+    <update id="resetLockFlag">
+        UPDATE thjs.tb_proj_flow_inst
+        SET lock_flag = '0'
+        WHERE pk_id = #{pkId}
+    </update>
+
+</mapper>

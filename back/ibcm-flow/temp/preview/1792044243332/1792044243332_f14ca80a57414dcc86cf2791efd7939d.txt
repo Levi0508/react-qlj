@@ -1,0 +1,278 @@
+create or replace procedure thjs.p_fxq_cust_rz_qry(rt_cursor       out sys_refcursor, --返回游标结果集
+                                                   i_cust_sno      in integer, --客户序号
+                                                   i_cust_biz      in varchar2, --客户业务分类
+                                                   i_cust_name     in varchar2, --客户名称
+                                                   i_cust_category in varchar2, --客户归属：融资端,投资端
+                                                   i_status        in varchar2, --状态：0-正常 1-删除
+                                                   i_rsk           in varchar2, --风险筛查：0-不涉及 1-涉及
+                                                   i_is_risk       in varchar2, --是否风险名单：0-否 1-是
+                                                   i_usercode      in varchar2, --查询人
+                                                   i_page_num      in number default 0, --默认值0,
+                                                   i_page_size     in number default 0, --默认值0  如果i_page_num，i_page_size都为0 则不分页，查询全部
+                                                   o_total_count   out integer,
+                                                   o_return_msg    out varchar2,
+                                                   o_return_code   out integer) is
+  ----------------------------------------------------------------------------------
+  --版    权：GTJA
+  --版    本：1.0.0
+  --开发人员：CZC@GTJA
+  --创建日期：20190603
+  --模块编号：
+  --模块名称：投行反洗钱 - 客户基本信息（融资端）查询
+  --功能名称：
+  ----------------------------------------------------------------------------------
+  --v101 YLT@GTJA  20200623 反洗钱客户填报加上了自然人的数据，故查询时要加上此部分数据
+  --v102 YLT@GTJA  20201029 ‘失效’状态的客户也要查询
+
+  --==============================================================================
+  --固定变量
+  v_userexp exception; -- 用户定义错
+  v_tradedate    varchar2(8); -- 任务执行时间(业务日期)
+  v_exec_func_id integer default '0'; -- 任务id
+  v_func_own     varchar2(20) default 'thjs'; -- 任务归属用户（schema）
+  v_func_name    varchar2(2000) default 'p_fxq_cust_rz_qry'; -- 任务名称(存储过程的名字)
+  v_sqlerrm      varchar2(4000); -- 错误提示信息
+  v_sqlcode      number; -- 错误代码
+  v_sqlerrl      varchar2(4000); -- 错误行号
+  --==============================================================================
+  ---------------------------------------------------------------------------------------
+  --业务变量
+  v_page_num  number default 0;
+  v_page_size number;
+
+  v_fk_flag char(1) default '0'; --反馈结果查看权限标识
+  --=============================================================
+  -- 业务处理过程
+  --=============================================================
+
+begin
+
+  v_tradedate := to_char(sysdate, 'yyyyMMdd');
+
+  --v102+ start
+  insert into thjs.tb_exec_log
+    (log_id, proc_name, proc_param, exec_time)
+  values
+    (thjs.tb_exec_log_id_seq.nextval,
+     'p_fxq_cust_rz_qry',
+     'i_cust_sno:' || i_cust_sno || ' -' || 'i_cust_biz:' || i_cust_biz || ' -' ||
+     'i_cust_name:' || i_cust_name || ' -' || 'i_cust_category:' ||
+     i_cust_category || ' -' || 'i_status:' || i_status || ' -' ||
+     'i_usercode:' || i_usercode || ' -' || 'i_page_num:' || i_page_num || ' -' ||
+     'i_page_size:' || i_page_size,
+     sysdate);
+  commit;
+  --v102+ end
+
+  if i_page_num is not null then
+    v_page_num := i_page_num;
+  end if;
+
+  --统计记录条数
+  if v_page_num < 1 then
+  
+    SELECT sum(cnt)
+      into o_total_count
+      FROM (select count(1) cnt
+              from thjs.vw_fxq_cust_info r
+              left join thjs.vw_fxq_cust_rsk cr
+                on cr.cust_id = r.cust_id
+              left join (select f.*,
+                               row_number() over(partition by f.cust_id order by f.busi_date desc) as rn
+                          from thjs.tb_fxq_risk_flow f) f --取最新核查结果
+                on f.cust_id = r.cust_id
+               and f.flow_staus = '1' --流程已结束
+               and f.rn = 1
+             where (r.cust_biz <> '测试' or i_usercode = 'admin')
+               and (i_cust_category is null or
+                   r.cust_category = i_cust_category)
+               and (i_cust_sno is null or r.cust_sno = i_cust_sno)
+               and (i_cust_biz is null or r.cust_biz = i_cust_biz)
+               and (i_cust_name is null or
+                   instr(r.cust_name, trim(i_cust_name)) > 0)
+               and (i_rsk is null or nvl(cr.screen_name, '不涉及') =
+                   decode(i_rsk, '1', '涉及', '不涉及'))
+               and (i_is_risk is null or nvl(f.is_riskcust, '否') =
+                   decode(i_is_risk, '1', '是', '否')));
+  
+  end if;
+
+  if i_page_size is not null and i_page_size <> 0 then
+    v_page_size := i_page_size;
+  else
+    v_page_size := o_total_count;
+  end if;
+
+  --检查反洗钱客户是否具有查看风险信息权限
+  select case
+           when count(1) > 0 then
+            '1'
+           else
+            '0'
+         end
+    into v_fk_flag
+    from basic_th.wb_user u
+   inner join basic_th.wb_user_role r
+      on u.user_id = r.user_id
+     and r.role_id = 'fxqrisk-th' --反洗钱风险等级划分及筛查结果查询权限
+   where u.user_name = i_usercode;
+
+  open rt_cursor for
+    select r.status, --状态：0-正常 1-删除
+           r.cust_category, --融资端/投资端
+           decode(r.status,
+                  '0',
+                  '正常',
+                  '1',
+                  '失效',
+                  '2',
+                  '强限制',
+                  '3',
+                  '弱限制') status_desc, --状态显示      
+           r.cust_sno, --客户序号
+           r.cust_biz, --客户业务分类
+           r.cust_id, --客户id
+           r.cust_name, --客户名称
+           r.update_user, --更新人
+           nvl(u.display_name, r.update_user) as update_user_name,
+           nvl(c.fir_deptname, c.sec_deptname) as updater_deptname,
+           r.update_time, --更新时间
+           r.create_user,
+           nvl(u1.display_name, r.create_user) as create_user_name,
+           r.create_time,
+           r.data_type, --0-草稿/1-正式           
+           decode(v_fk_flag, '1', nvl(r.screen_name, '不涉及'), '') as screen_name, --风险名单筛查描述 不涉及/涉及
+           decode(v_fk_flag, '1', nvl(r.grade_name, '低风险'), '') as grade_name, --风险等级描述 低/较低/中/较高/高
+           decode(v_fk_flag, '1', r.is_riskcust, '') as is_riskcust, --是否涉及风险名单 否/是
+           decode(v_fk_flag, '1', r.risk_type, '') as risk_type, --风险名单类型： A1-A6
+           r.cust_type, --客户类型:0-机构，1-自然人
+           decode(r.cust_type, '1', '自然人', '机构') cust_type_val, --客户类型中文展示
+           r.work_no,
+           r.op_user_code, --填报人代码
+           r.op_user_name, --填报人名称
+           r.op_user_desc,
+           r.staff_id
+      from (
+            --v101- start
+            /*--只查正式表和草稿表中的客户数据
+            select r.*,
+                    1 data_type,
+                    row_number() over(partition by null order by r.cust_sno) as rn
+              from thjs.tb_fxq_cust_rz r
+             where r.status = '0'
+               and (r.cust_biz <> '测试' or i_usercode = 'admin')
+               and (i_cust_sno is null or r.cust_sno = i_cust_sno)
+               and (i_cust_biz is null or r.cust_biz = i_cust_biz)
+               and (i_cust_name is null or
+                   instr(r.cust_name, i_cust_name) > 0)*/
+            --v101- end
+            --v101+ start
+            --客户类型为'机构'
+            select t.*,
+                    row_number() over(partition by null order by t.update_time desc) as rn
+              from (select r.status, --状态：0-正常 1-删除
+                            r.cust_sno, --客户序号
+                            r.cust_biz, --客户业务分类
+                            r.cust_category ||
+                            decode(r.cust_type, null, '', '-' || r.cust_type) as cust_category, --融资端/投资端-ecm/dcm
+                            r.cust_id, --客户id
+                            r.cust_name, --客户名称
+                            r.update_user, --更新人
+                            r.update_time, --更新时间
+                            r.create_user,
+                            r.create_time,
+                            1 data_type,
+                            decode(r.cust_flag, '机构', '0', '1') cust_type, --客户类型:0-机构，1-自然人
+                            o.work_no,
+                            u.staff_id,
+                            o.user_code as op_user_code, --填报人代码
+                            o.user_name as op_user_name, --填报人名称
+                            o.work_no || '-' || o.user_name as op_user_desc,
+                            cr.screen_name,
+                            cr.grade_name,
+                            nvl(f.is_riskcust, '否') as is_riskcust,
+                            f.risk_type
+                       from thjs.vw_fxq_cust_info r
+                       left join thjs.Tb_Fxq_Cust_Operator o
+                         on o.cust_id = r.cust_id
+                       left join basic_th.wb_user u
+                         on o.work_no = u.user_id
+                       left join thjs.vw_fxq_cust_rsk cr
+                         on cr.cust_id = r.cust_id
+                       left join (select f.*,
+                                        row_number() over(partition by f.cust_id order by f.busi_date desc) as rn
+                                   from thjs.tb_fxq_risk_flow f) f --取最新核查结果
+                         on f.cust_id = r.cust_id
+                        and f.flow_staus = '1' --流程已结束
+                        and f.rn = 1
+                      where (r.cust_biz <> '测试' or i_usercode = 'admin')
+                        and (i_cust_category is null or
+                            r.cust_category = i_cust_category)
+                        and (i_cust_sno is null or r.cust_sno = i_cust_sno)
+                        and (i_cust_biz is null or r.cust_biz = i_cust_biz)
+                        and (i_cust_name is null or
+                            instr(r.cust_name, trim(i_cust_name)) > 0)
+                        and (i_rsk is null or
+                            nvl(cr.screen_name, '不涉及') =
+                            decode(i_rsk, '1', '涉及', '不涉及'))
+                        and (i_is_risk is null or
+                            nvl(f.is_riskcust, '否') =
+                            decode(i_is_risk, '1', '是', '否'))) t
+            --v101+ end
+            ) r
+    /*left join thjs.tb_dict_entry d
+     on d.entry_code = 'INDUSTRY_TYPE'
+    and d.entry_value = r.industry_id*/
+      left join thjs.ib_v_userinfo c
+        on c.username = r.update_user
+      left join basic_th.wb_user u
+        on u.user_name = r.update_user
+      left join basic_th.wb_user u1
+        on u1.user_name = r.create_user
+     where r.rn > v_page_num
+       and r.rn <= v_page_num + v_page_size
+     order by r.rn;
+
+  commit;
+
+  o_return_msg  := '执行成功';
+  o_return_code := 0;
+
+exception
+  -- 非预定义异常处理
+  when v_userexp then
+    rollback;
+  
+    v_sqlerrm := sqlerrm;
+    v_sqlcode := sqlcode;
+    v_sqlerrl := dbms_utility.format_error_backtrace();
+  
+    hgman.p_write_error_log(i_tradedate    => v_tradedate,
+                            i_exec_func_id => v_exec_func_id,
+                            i_func_own     => v_func_own,
+                            i_func_name    => v_func_name,
+                            i_occur_time   => sysdate,
+                            i_sqlerrm      => v_sqlerrm,
+                            i_sqlcode      => v_sqlcode,
+                            i_sqlerrl      => v_sqlerrl);
+    commit;
+    raise;
+    -- 预定义异常处理
+  when others then
+    rollback;
+  
+    v_sqlerrm := sqlerrm;
+    v_sqlcode := sqlcode;
+    v_sqlerrl := dbms_utility.format_error_backtrace();
+  
+    hgman.p_write_error_log(i_tradedate    => v_tradedate,
+                            i_exec_func_id => v_exec_func_id,
+                            i_func_own     => v_func_own,
+                            i_func_name    => v_func_name,
+                            i_occur_time   => sysdate,
+                            i_sqlerrm      => v_sqlerrm,
+                            i_sqlcode      => v_sqlcode,
+                            i_sqlerrl      => v_sqlerrl);
+    commit;
+    raise;
+end;

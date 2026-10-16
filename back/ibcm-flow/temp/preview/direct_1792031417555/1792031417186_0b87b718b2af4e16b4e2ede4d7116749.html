@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本预览 - 1792031417186_0b87b718b2af4e16b4e2ede4d7116749.txt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filename {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .fileinfo {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="filename">📄 1792031417186_0b87b718b2af4e16b4e2ede4d7116749.txt</div>
+        <div class="fileinfo">文本文件 • 20.76 KB</div>
+    </div>
+    <div class="content">
+/*
+ * @Author: ���
+ * @Date: 2025-11-25 17:56:25
+ * @LastEditors: error: error: git config user.name &amp; please set dead value or install git &amp;&amp; error: git config user.email &amp; please set dead value or install git &amp; please set dead value or install git
+ * @LastEditTime: 2025-11-26 09:15:00
+ * @FilePath: \ibcm-flow-ui\src\pages\ibcm001\componens\fileManage\index.js
+ * @Description: ����Ĭ������,������`customMade`, ��koroFileHeader�鿴���� ��������: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+import React, { useState, useEffect } from &#39;react&#39;;
+import { Card, Table, Tabs, Input, Button, Select, Row, Col, message } from &#39;antd&#39;;
+import { Icon } from &#39;antd&#39;;
+import { PlusOutlined, DeleteOutlined } from &#39;@ant-design/icons&#39;;
+import services from &#39;../../services&#39;;
+
+const { TabPane } = Tabs;
+const { Option } = Select;
+const { TextArea } = Input;
+
+function ReviewRecord({ clientId = clientId, curNode = {}, editable = false }) {
+    const [activeTab, setActiveTab] = useState(&#39;0&#39;);
+    const [showHistoryLogs, setShowHistoryLogs] = useState(true);
+    const [latestData, setLatestData] = useState([]);
+    const [historyData, setHistoryData] = useState([]);
+    const [batchTotal, setBatchTotal] = useState(0);
+    const [latestInfo, setLatestInfo] = useState({
+        display_name: &#39;&#39;,
+        create_time: &#39;&#39;,
+        remark: &#39;&#39;
+    });
+    const [batchInfo, setBatchInfo] = useState({
+        display_name: &#39;&#39;,
+        create_time: &#39;&#39;,
+        remark: &#39;&#39;
+    });
+
+    // ��˱༭���״̬
+    const [tableData, setTableData] = useState([]); // ��ǰ�������
+    const [remark, setRemark] = useState(&#39;&#39;); // ��ע
+    const [errorTypeOptions, setErrorTypeOptions] = useState([]); // ��������������ѡ��
+    const [isEditableMode, setIsEditableMode] = useState(false); // �Ƿ�Ϊ�ɱ༭ģʽ
+    const [initialLoadDone, setInitialLoadDone] = useState(false); // ����Ƿ�����ɳ��μ���
+
+    // ���ڸ�������Ƿ��ѹ���
+    const isMounted = React.useRef(true);
+
+    useEffect(() =&gt; {
+        // �ж��Ƿ�Ϊ�ɱ༭ģʽ���� curNode.nodeCode === &quot;hgrysh&quot; ʱ
+        const isEditMode = curNode?.nodeCode === &#39;hgrysh&#39;;
+        setIsEditableMode(isEditMode);
+
+        loadBatchTotal();
+        loadApprovalHistory();
+        // ���س�ʼ����
+        const loadInitialData = async () =&gt; {
+            try {
+                // ������������
+                const response = await services.selectBatchTotal({
+                    clientId: clientId
+                });
+
+                if (response.success) {
+                    const total = parseInt(response.data || &#39;0&#39;, 10);
+                    console.log(&#39;loadInitialData: ��������:&#39;, total);
+
+                    if (isMounted.current) {
+                        setBatchTotal(total);
+                    }
+
+                    // ��������������ɺ�����ǵ�һ�μ�����������������0������ص�һ�����ε�����
+                    if (isMounted.current &amp;&amp; !initialLoadDone &amp;&amp; total &gt; 0) {
+                        console.log(&#39;���μ��أ��Զ����ص�һ��tabҳ������&#39;);
+                        // ֱ�ӵ���loadHistoryDataByBatch������handleTabClick�������ظ�����loadApprListByBatch
+                        await loadHistoryDataByBatch(0);
+                        setInitialLoadDone(true);
+                    }
+                }
+            } catch (error) {
+                console.error(&#39;������������ʧ��:&#39;, error);
+            }
+        };
+        loadInitialData();
+
+        if (isEditMode) {
+            loadErrorTypeOptions();
+            // ע��ȫ�ַ��������ڻ�ȡ�������
+            window.getReviewRecordData = () =&gt; {
+                return {
+                    tableData: [...tableData],
+                    remark: remark,
+                    clientId: clientId
+                };
+            };
+        }
+
+
+        // ������
+        return () =&gt; {
+            isMounted.current = false;
+            if (window.getReviewRecordData) {
+                delete window.getReviewRecordData;
+            }
+            if (window.errorTypeOptions) {
+                delete window.errorTypeOptions;
+            }
+        };
+    }, [clientId, curNode, editable, tableData, remark]); // �Ƴ�batchTotal��initialLoadDone��������������ѭ��
+
+    // ���������������
+    const loadBatchTotal = async () =&gt; {
+        try {
+            const response = await services.selectBatchTotal({
+                clientId: clientId
+            });
+            console.log(&#39;loadBatchTotal: �ӿ���Ӧ:&#39;, response);
+
+
+            if (response.success) {
+                // �ӿڷ��ص�data���ַ������͵����֣���Ҫת��Ϊ����
+                const total = parseInt(response.data || &#39;0&#39;, 10);
+                console.log(&#39;loadBatchTotal: ��������:&#39;, total);
+                setBatchTotal(total);
+            } else {
+                console.error(&#39;��ȡ��������ʧ��:&#39;, response.msg);
+                setBatchTotal(0);
+            }
+        } catch (error) {
+            console.error(&#39;���������������ʧ��:&#39;, error);
+            // �������Ƿ��ѹ���
+            if (isMounted.current) {
+                setBatchTotal(0);
+            }
+        }
+    };
+
+
+
+    // ������˼�¼����
+    const loadApprovalHistory = async () =&gt; {
+        try {
+            const response = await services.selectBatchTotal({
+                clientId: clientId
+            });
+
+            if (response.success) {
+                const total = parseInt(response.data || &#39;0&#39;, 10);
+                setBatchTotal(total);
+
+            }
+        } catch (error) {
+            console.error(&#39;������˼�¼ʧ��:&#39;, error);
+        }
+    };
+
+    // �����ǩҳ���
+    const handleTabClick = async (tabKey) =&gt; {
+        const tabIndex = parseInt(tabKey);
+        console.log(&quot;tabIndex&quot;, tabIndex);
+        await loadHistoryDataByBatch(tabIndex);
+        // ͬʱ���ظ����ε�����б���Ϣ
+        await loadApprListByBatch(tabIndex);
+    };
+
+    // ������ʷ�������
+    const loadHistoryDataByBatch = async (tabIndex) =&gt; {
+        try {
+            // tabIndex �Ǵ�0��ʼ�ģ����κ��Ǵ�1��ʼ��
+            // �������� = batchTotal
+            // ��ʷ���α�� = 1, 2, ..., batchTotal
+            // tabIndex 0 -&gt; ���� batchTotal-1
+            // tabIndex 1 -&gt; ���� batchTotal-2
+
+            const batchNum = batchTotal - tabIndex;
+
+            // ȷ�����κ���Ч
+            if (batchNum &gt;= 1 &amp;&amp; batchNum &lt;= batchTotal) {
+                const response = await services.selectApprDetails({
+                    clientId: clientId,
+                    batchNum: String(batchNum)
+                });
+                console.log(&quot;loadHistoryDataByBatch: �ӿ���Ӧ:&quot;, response)
+
+
+                if (response.success &amp;&amp; response.data) {
+                    console.log(&quot;hahahahahahahahahahah&quot;);
+                    let historyRecords = [];
+                    try {
+                        historyRecords = JSON.parse(response.data);
+                    } catch (e) {
+                        console.error(&#39;������ʷ��˼�¼����ʧ��:&#39;, e);
+                        historyRecords = response.data;
+                    }
+
+                    if (historyRecords &amp;&amp; historyRecords.length &gt; 0) {
+                        loadHistoryData(historyRecords);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(&#39;������ʷ�������ʧ��:&#39;, error);
+        }
+    };
+
+    // ���ش�������ѡ��
+    const loadErrorTypeOptions = async () =&gt; {
+        try {
+            // ���ýӿڻ�ȡ��������
+            const response = await services.selectErrType();
+
+            // �������Ƿ��ѹ���
+            if (!isMounted.current) {
+                console.log(&#39;loadErrorTypeOptions: �����ж�أ�����״̬����&#39;);
+                return;
+            }
+
+            if (response.success &amp;&amp; response.data) {
+                let errorTypes = [];
+                try {
+                    errorTypes = JSON.parse(response.data);
+                } catch (e) {
+                    console.error(&#39;����������������ʧ��:&#39;, e);
+                    errorTypes = response.data;
+                }
+                if (errorTypes &amp;&amp; errorTypes.length &gt; 0) {
+                    setErrorTypeOptions(errorTypes);
+                } else {
+                    setErrorTypeOptions([]);
+                }
+            } else {
+                setErrorTypeOptions([]);
+            }
+        } catch (error) {
+            console.error(&#39;���ش�������ʧ��:&#39;, error);
+            // �������Ƿ��ѹ���
+            if (isMounted.current) {
+                // ����ʱʹ��Ĭ������
+                const defaultErrorTypes = [
+                    { errType: &#39;1&#39;, errDesc: &#39;��Ϣ��д������&#39; },
+                    { errType: &#39;2&#39;, errDesc: &#39;����ȱʧ&#39; },
+                    { errType: &#39;3&#39;, errDesc: &#39;��Ϣ��һ��&#39; },
+                    { errType: &#39;4&#39;, errDesc: &#39;���ϲ�����&#39; },
+                    { errType: &#39;5&#39;, errDesc: &#39;��������&#39; }
+                ];
+                setErrorTypeOptions(defaultErrorTypes);
+            }
+        }
+    };
+
+    // �����
+    const addRow = () =&gt; {
+        const newRow = {
+            key: Date.now(),
+            seq: tableData.length + 1,
+            errorType: &#39;&#39;,
+            problemDesc: &#39;&#39;
+        };
+        setTableData([...tableData, newRow]);
+    };
+
+    // �Ƴ���
+    const removeRow = (index) =&gt; {
+        const newData = [...tableData];
+        newData.splice(index, 1);
+        // �������
+        const updatedData = newData.map((item, idx) =&gt; ({
+            ...item,
+            seq: idx + 1
+        }));
+        setTableData(updatedData);
+    };
+
+    // ����������
+    const updateRow = (index, field, value) =&gt; {
+        const newData = [...tableData];
+        newData[index] = {
+            ...newData[index],
+            [field]: value
+        };
+        setTableData(newData);
+    };
+
+    // �ύ���
+    const submitApproval = async () =&gt; {
+        // У������
+        const errors = [];
+        tableData.forEach((row, index) =&gt; {
+            if (!row.errorType) {
+                errors.push(`��ѡ���${index + 1}�еĴ�������`);
+            }
+            if (!row.problemDesc) {
+                errors.push(`����д��${index + 1}�е���������`);
+            }
+        });
+
+        if (errors.length &gt; 0) {
+            message.error(errors.join(&#39;\n&#39;));
+            return;
+        }
+
+        try {
+            // ������Ҫ���ú�˽ӿ��ύ�������
+            // ���� base_appr.xwl �е��߼�����Ҫ���� save_appr_list �� save_appr_details �ӿ�
+            // ���ں�˽ӿ���δ������������ģ���ύ�ɹ�
+            console.log(&#39;�ύ�������:&#39;, {
+                clientId,
+                tableData,
+                remark
+            });
+
+            message.success(&#39;����ύ�ɹ�&#39;);
+
+            // ��ձ�����
+            setTableData([]);
+            setRemark(&#39;&#39;);
+
+            // ���¼�����˼�¼
+            loadBatchTotal();
+            // ���¼��ص�ǰ���ε�����
+            handleTabClick(activeTab);
+        } catch (error) {
+            console.error(&#39;�ύ���ʧ��:&#39;, error);
+            message.error(&#39;�ύ���ʧ��&#39;);
+        }
+    };
+
+    // ��������б���Ϣ����ȡ��ע������ˡ����ʱ��ȣ�
+    const loadApprListByBatch = async (tabIndex) =&gt; {
+        try {
+            // tabIndex �Ǵ�0��ʼ�ģ����κ��Ǵ�1��ʼ��
+            // �������� = batchTotal
+            // ��ʷ���α�� = 1, 2, ..., batchTotal
+            // tabIndex 0 -&gt; ���� batchTotal-1
+            // tabIndex 1 -&gt; ���� batchTotal-2
+            const batchNum = batchTotal - tabIndex;
+
+            // ȷ�����κ���Ч
+            if (batchNum &gt;= 1 &amp;&amp; batchNum &lt;= batchTotal) {
+                // ע�⣺�����������б���Ϣ�Ѿ����������������
+                // ���û�е�����selectApprList�ӿڣ����ǿ��Դ������������ȡ
+                // ������������selectApprList�ӿڣ����Ե�����
+                console.log(&#39;loadApprListByBatch: ��������&#39;, batchNum, &#39;������б���Ϣ&#39;);
+
+                // ������Ե���selectApprList�ӿڣ�������ڣ�
+                // const response = await services.selectApprList({
+                //     clientId: clientId,
+                //     batchNum: String(batchNum)
+                // });
+
+                // ��ʱʹ����������е���Ϣ
+                // ��ʵ�ʿ����У�Ӧ�õ���selectApprList�ӿڻ�ȡ����������б���Ϣ
+            }
+        } catch (error) {
+            console.error(&#39;��������б���Ϣʧ��:&#39;, error);
+        }
+    };
+
+    // ������ʷ����
+    const loadHistoryData = (batchData) =&gt; {
+
+        const historyItems = Array.isArray(batchData) ? batchData : [batchData];
+        console.log(&quot;historyItems&quot;, historyItems);
+        setHistoryData(historyItems.map((item, index) =&gt; ({
+            key: String(index + 1),
+            disposeDesc: item.disposeDesc || &#39;&#39;,
+            auditDesc: item.auditDesc || &#39;&#39;,
+            createUser: item.createUser || &#39;&#39;,
+            createTime: item.createTime || &#39;&#39;
+        })));
+
+        // ����������Ϣ - �ӵ�һ����¼��ȡ������Ϣ
+        if (historyItems.length &gt; 0) {
+            const firstRecord = historyItems[0];
+            setBatchInfo({
+                display_name: firstRecord.createUser || &#39;&#39;,
+                create_time: firstRecord.createTime || &#39;&#39;,
+                remark: firstRecord.remark || firstRecord.auditRemark || &#39;&#39; // ���ԴӲ�ͬ�ֶλ�ȡ��ע
+            });
+        }
+    };
+
+    // ������˼�¼�����
+    const latestColumns = [
+        {
+            title: &#39;���&#39;,
+            key: &#39;index&#39;,
+            width: 180,
+            render: (_, __, index) =&gt; index + 1
+        },
+        {
+            title: &#39;��������&#39;,
+            dataIndex: &#39;auditDesc&#39;,
+            width: 300
+        },
+        {
+            title: &#39;��������&#39;,
+            dataIndex: &#39;disposeDesc&#39;,
+        }
+    ];
+
+    // ��ʷ��˼�¼�����
+    const historyColumns = [
+        {
+            title: &#39;��������&#39;,
+            dataIndex: &#39;disposeDesc&#39;,
+        },
+        {
+            title: &#39;�������&#39;,
+            dataIndex: &#39;auditDesc&#39;,
+            width: 300
+        },
+        {
+            title: &#39;�����&#39;,
+            dataIndex: &#39;createUser&#39;,
+            width: 200
+        },
+        {
+            title: &#39;���ʱ��&#39;,
+            dataIndex: &#39;createTime&#39;,
+            width: 200
+        }
+    ];
+
+    // �ɱ༭ģʽ�ı����
+    const editColumns = [
+        {
+            title: &#39;���&#39;,
+            key: &#39;seq&#39;,
+            width: 60,
+            render: (_, __, index) =&gt; index + 1
+        },
+        {
+            title: &#39;��������&#39;,
+            key: &#39;errorType&#39;,
+            width: 250,
+            render: (text, record, index) =&gt; (
+                &lt;Select
+                    value={record.errorType}
+                    onChange={(value) =&gt; updateRow(index, &#39;errorType&#39;, value)}
+                    placeholder=&quot;��ѡ��&quot;
+                    style={{ width: &#39;100%&#39; }}
+                    disabled={!isEditableMode}
+                &gt;
+                    {errorTypeOptions.map(option =&gt; (
+                        &lt;Option key={option.errType} value={option.errType}&gt;
+                            {option.errDesc}
+                        &lt;/Option&gt;
+                    ))}
+                &lt;/Select&gt;
+            )
+        },
+        {
+            title: &#39;��������&#39;,
+            key: &#39;problemDesc&#39;,
+            render: (text, record, index) =&gt; (
+                &lt;TextArea
+                    value={record.problemDesc}
+                    onChange={(e) =&gt; updateRow(index, &#39;problemDesc&#39;, e.target.value)}
+                    placeholder=&quot;��������������&quot;
+                    autoSize={{ minRows: 1, maxRows: 3 }}
+                    disabled={!isEditableMode}
+                /&gt;
+            )
+        },
+        {
+            title: &#39;����&#39;,
+            key: &#39;action&#39;,
+            width: 100,
+            render: (text, record, index) =&gt; (
+                &lt;Button
+                    type=&quot;text&quot;
+                    size=&quot;small&quot;
+                    style={{ color: &#39;#F56C6C&#39; }}
+                    onClick={() =&gt; removeRow(index)}
+                    disabled={!isEditableMode}
+                &gt;
+                    �Ƴ�
+                &lt;/Button&gt;
+            )
+        }
+    ];
+
+    return (
+        &lt;Card className=&quot;box-card&quot; id=&quot;approvalHistory&quot; title=&quot;��˼�¼&quot;&gt;
+            {/* �ɱ༭ģʽ����˱� */}
+            &lt;div&gt;
+                &lt;div style={{ marginBottom: &#39;20px&#39; }}&gt;
+                    &lt;h4 style={{ marginBottom: &#39;16px&#39;, color: &#39;#303133&#39; }}&gt;�������¼��&lt;/h4&gt;
+                    &lt;Table
+                        dataSource={tableData}
+                        columns={editColumns}
+                        pagination={false}
+                        bordered
+                        size=&quot;small&quot;
+                        rowKey=&quot;key&quot;
+                    /&gt;
+                    &lt;div style={{ marginTop: &#39;16px&#39;, textAlign: &#39;right&#39; }}&gt;
+                        &lt;Button
+                            type=&quot;primary&quot;
+                            onClick={addRow}
+                            icon={&lt;PlusOutlined /&gt;}
+                        &gt;
+                            �����
+                        &lt;/Button&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+
+                &lt;div style={{ marginBottom: &#39;20px&#39; }}&gt;
+                    &lt;div style={{ color: &#39;#4b4b4b&#39;, padding: &#39;20px 0 10px 0&#39; }}&gt;
+                        ��ע
+                    &lt;/div&gt;
+                    &lt;TextArea
+                        value={remark}
+                        onChange={(e) =&gt; setRemark(e.target.value)}
+                        placeholder=&quot;�����뱸ע&quot;
+                        rows={3}
+                    /&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+
+            {/* ��ʷ�����¼ */}
+            &lt;div&gt;
+                &lt;div
+                    style={{
+                        color: &#39;#4b4b4b&#39;,
+                        padding: &#39;20px 0 10px 0&#39;,
+                        cursor: &#39;pointer&#39;,
+                        userSelect: &#39;none&#39;
+                    }}
+                    onClick={() =&gt; setShowHistoryLogs(!showHistoryLogs)}
+                &gt;
+                    &lt;span&gt;
+                        {showHistoryLogs ?
+                            &lt;Icon type=&quot;caret-down&quot; /&gt; :
+                            &lt;Icon type=&quot;caret-up&quot; /&gt;
+                        }
+                    &lt;/span&gt;
+                    &lt;span style={{ marginLeft: &#39;8px&#39; }}&gt;��ʷ�����¼&lt;/span&gt;
+                &lt;/div&gt;
+
+                {showHistoryLogs &amp;&amp; (
+                    &lt;div&gt;
+                        {batchTotal === 0 ? (
+                            &lt;div style={{
+                                color: &#39;#8d8b8b&#39;,
+                                height: &#39;100%&#39;,
+                                display: &#39;flex&#39;,
+                                justifyContent: &#39;center&#39;,
+                                alignItems: &#39;center&#39;
+                            }}&gt;
+                                ��������
+                            &lt;/div&gt;
+                        ) : (
+                            &lt;Tabs activeKey={activeTab} onChange={handleTabClick} onClick={handleTabClick}&gt;
+                                {Array.from({ length: Math.max(0, batchTotal) }, (_, index) =&gt; (
+                                    &lt;TabPane
+                                        key={String(index)}
+                                        tab={`����${batchTotal - index}`}&gt;
+                                        &lt;Table
+                                            dataSource={historyData}
+                                            columns={historyColumns}
+                                            pagination={false}
+                                            bordered
+                                            size=&quot;small&quot;
+                                        /&gt;
+                                        &lt;div style={{ marginTop: &#39;16px&#39; }}&gt;
+                                            &lt;div style={{ color: &#39;#4b4b4b&#39;, padding: &#39;20px 0 10px 0&#39; }}&gt;
+                                                ��ע
+                                            &lt;/div&gt;
+                                            &lt;Input.TextArea value={batchInfo.remark} disabled /&gt;
+                                            &lt;div style={{ color: &#39;#4b4b4b&#39;, padding: &#39;10px 0 0 0&#39;, textAlign: &#39;right&#39; }}&gt;
+                                                �����: {batchInfo.display_name}
+                                            &lt;/div&gt;
+                                            &lt;div style={{ color: &#39;#4b4b4b&#39;, padding: &#39;10px 0 0 0&#39;, textAlign: &#39;right&#39; }}&gt;
+                                                ���ʱ��: {batchInfo.create_time}
+                                            &lt;/div&gt;
+                                        &lt;/div&gt;
+                                    &lt;/TabPane&gt;
+                                ))}
+                            &lt;/Tabs&gt;
+                        )}
+                    &lt;/div&gt;
+                )}
+            &lt;/div&gt;
+        &lt;/Card&gt;
+    );
+}
+
+export default ReviewRecord;
+</div>
+    <div class="stats">
+        📊 文件信息：21254 字节 | 20881 字符 | 588 行
+    </div>
+</body>
+</html>

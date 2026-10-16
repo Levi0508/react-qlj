@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本预览 - 1792026112655_852c9bd7766e4e50b971a8ec2255502b.txt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filename {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .fileinfo {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="filename">📄 1792026112655_852c9bd7766e4e50b971a8ec2255502b.txt</div>
+        <div class="fileinfo">文本文件 • 12.37 KB</div>
+    </div>
+    <div class="content">create or replace procedure thjs.p_fxq_cust_rz_qry(rt_cursor       out sys_refcursor, --�����α�����
+                                                   i_cust_sno      in integer, --�ͻ����
+                                                   i_cust_biz      in varchar2, --�ͻ�ҵ�����
+                                                   i_cust_name     in varchar2, --�ͻ�����
+                                                   i_cust_category in varchar2, --�ͻ����������ʶ�,Ͷ�ʶ�
+                                                   i_status        in varchar2, --״̬��0-���� 1-ɾ��
+                                                   i_rsk           in varchar2, --����ɸ�飺0-���漰 1-�漰
+                                                   i_is_risk       in varchar2, --�Ƿ����������0-�� 1-��
+                                                   i_usercode      in varchar2, --��ѯ��
+                                                   i_page_num      in number default 0, --Ĭ��ֵ0,
+                                                   i_page_size     in number default 0, --Ĭ��ֵ0  ���i_page_num��i_page_size��Ϊ0 �򲻷�ҳ����ѯȫ��
+                                                   o_total_count   out integer,
+                                                   o_return_msg    out varchar2,
+                                                   o_return_code   out integer) is
+  ----------------------------------------------------------------------------------
+  --��    Ȩ��GTJA
+  --��    ����1.0.0
+  --������Ա��CZC@GTJA
+  --�������ڣ�20190603
+  --ģ���ţ�
+  --ģ�����ƣ�Ͷ�з�ϴǮ - �ͻ�������Ϣ�����ʶˣ���ѯ
+  --�������ƣ�
+  ----------------------------------------------------------------------------------
+  --v101 YLT@GTJA  20200623 ��ϴǮ�ͻ����������Ȼ�˵����ݣ��ʲ�ѯʱҪ���ϴ˲�������
+  --v102 YLT@GTJA  20201029 ��ʧЧ��״̬�Ŀͻ�ҲҪ��ѯ
+
+  --==============================================================================
+  --�̶�����
+  v_userexp exception; -- �û������
+  v_tradedate    varchar2(8); -- ����ִ��ʱ��(ҵ������)
+  v_exec_func_id integer default &#39;0&#39;; -- ����id
+  v_func_own     varchar2(20) default &#39;thjs&#39;; -- ��������û���schema��
+  v_func_name    varchar2(2000) default &#39;p_fxq_cust_rz_qry&#39;; -- ��������(�洢���̵�����)
+  v_sqlerrm      varchar2(4000); -- ������ʾ��Ϣ
+  v_sqlcode      number; -- �������
+  v_sqlerrl      varchar2(4000); -- �����к�
+  --==============================================================================
+  ---------------------------------------------------------------------------------------
+  --ҵ�����
+  v_page_num  number default 0;
+  v_page_size number;
+
+  v_fk_flag char(1) default &#39;0&#39;; --��������鿴Ȩ�ޱ�ʶ
+  --=============================================================
+  -- ҵ�������
+  --=============================================================
+
+begin
+
+  v_tradedate := to_char(sysdate, &#39;yyyyMMdd&#39;);
+
+  --v102+ start
+  insert into thjs.tb_exec_log
+    (log_id, proc_name, proc_param, exec_time)
+  values
+    (thjs.tb_exec_log_id_seq.nextval,
+     &#39;p_fxq_cust_rz_qry&#39;,
+     &#39;i_cust_sno:&#39; || i_cust_sno || &#39; -&#39; || &#39;i_cust_biz:&#39; || i_cust_biz || &#39; -&#39; ||
+     &#39;i_cust_name:&#39; || i_cust_name || &#39; -&#39; || &#39;i_cust_category:&#39; ||
+     i_cust_category || &#39; -&#39; || &#39;i_status:&#39; || i_status || &#39; -&#39; ||
+     &#39;i_usercode:&#39; || i_usercode || &#39; -&#39; || &#39;i_page_num:&#39; || i_page_num || &#39; -&#39; ||
+     &#39;i_page_size:&#39; || i_page_size,
+     sysdate);
+  commit;
+  --v102+ end
+
+  if i_page_num is not null then
+    v_page_num := i_page_num;
+  end if;
+
+  --ͳ�Ƽ�¼����
+  if v_page_num &lt; 1 then
+  
+    SELECT sum(cnt)
+      into o_total_count
+      FROM (select count(1) cnt
+              from thjs.vw_fxq_cust_info r
+              left join thjs.vw_fxq_cust_rsk cr
+                on cr.cust_id = r.cust_id
+              left join (select f.*,
+                               row_number() over(partition by f.cust_id order by f.busi_date desc) as rn
+                          from thjs.tb_fxq_risk_flow f) f --ȡ���º˲���
+                on f.cust_id = r.cust_id
+               and f.flow_staus = &#39;1&#39; --�����ѽ���
+               and f.rn = 1
+             where (r.cust_biz &lt;&gt; &#39;����&#39; or i_usercode = &#39;admin&#39;)
+               and (i_cust_category is null or
+                   r.cust_category = i_cust_category)
+               and (i_cust_sno is null or r.cust_sno = i_cust_sno)
+               and (i_cust_biz is null or r.cust_biz = i_cust_biz)
+               and (i_cust_name is null or
+                   instr(r.cust_name, trim(i_cust_name)) &gt; 0)
+               and (i_rsk is null or nvl(cr.screen_name, &#39;���漰&#39;) =
+                   decode(i_rsk, &#39;1&#39;, &#39;�漰&#39;, &#39;���漰&#39;))
+               and (i_is_risk is null or nvl(f.is_riskcust, &#39;��&#39;) =
+                   decode(i_is_risk, &#39;1&#39;, &#39;��&#39;, &#39;��&#39;)));
+  
+  end if;
+
+  if i_page_size is not null and i_page_size &lt;&gt; 0 then
+    v_page_size := i_page_size;
+  else
+    v_page_size := o_total_count;
+  end if;
+
+  --��鷴ϴǮ�ͻ��Ƿ���в鿴������ϢȨ��
+  select case
+           when count(1) &gt; 0 then
+            &#39;1&#39;
+           else
+            &#39;0&#39;
+         end
+    into v_fk_flag
+    from basic_th.wb_user u
+   inner join basic_th.wb_user_role r
+      on u.user_id = r.user_id
+     and r.role_id = &#39;fxqrisk-th&#39; --��ϴǮ���յȼ����ּ�ɸ������ѯȨ��
+   where u.user_name = i_usercode;
+
+  open rt_cursor for
+    select r.status, --״̬��0-���� 1-ɾ��
+           r.cust_category, --���ʶ�/Ͷ�ʶ�
+           decode(r.status,
+                  &#39;0&#39;,
+                  &#39;����&#39;,
+                  &#39;1&#39;,
+                  &#39;ʧЧ&#39;,
+                  &#39;2&#39;,
+                  &#39;ǿ����&#39;,
+                  &#39;3&#39;,
+                  &#39;������&#39;) status_desc, --״̬��ʾ      
+           r.cust_sno, --�ͻ����
+           r.cust_biz, --�ͻ�ҵ�����
+           r.cust_id, --�ͻ�id
+           r.cust_name, --�ͻ�����
+           r.update_user, --������
+           nvl(u.display_name, r.update_user) as update_user_name,
+           nvl(c.fir_deptname, c.sec_deptname) as updater_deptname,
+           r.update_time, --����ʱ��
+           r.create_user,
+           nvl(u1.display_name, r.create_user) as create_user_name,
+           r.create_time,
+           r.data_type, --0-�ݸ�/1-��ʽ           
+           decode(v_fk_flag, &#39;1&#39;, nvl(r.screen_name, &#39;���漰&#39;), &#39;&#39;) as screen_name, --��������ɸ������ ���漰/�漰
+           decode(v_fk_flag, &#39;1&#39;, nvl(r.grade_name, &#39;�ͷ���&#39;), &#39;&#39;) as grade_name, --���յȼ����� ��/�ϵ�/��/�ϸ�/��
+           decode(v_fk_flag, &#39;1&#39;, r.is_riskcust, &#39;&#39;) as is_riskcust, --�Ƿ��漰�������� ��/��
+           decode(v_fk_flag, &#39;1&#39;, r.risk_type, &#39;&#39;) as risk_type, --�����������ͣ� A1-A6
+           r.cust_type, --�ͻ�����:0-������1-��Ȼ��
+           decode(r.cust_type, &#39;1&#39;, &#39;��Ȼ��&#39;, &#39;����&#39;) cust_type_val, --�ͻ���������չʾ
+           r.work_no,
+           r.op_user_code, --��˴���
+           r.op_user_name, --�������
+           r.op_user_desc,
+           r.staff_id
+      from (
+            --v101- start
+            /*--ֻ����ʽ��Ͳݸ���еĿͻ�����
+            select r.*,
+                    1 data_type,
+                    row_number() over(partition by null order by r.cust_sno) as rn
+              from thjs.tb_fxq_cust_rz r
+             where r.status = &#39;0&#39;
+               and (r.cust_biz &lt;&gt; &#39;����&#39; or i_usercode = &#39;admin&#39;)
+               and (i_cust_sno is null or r.cust_sno = i_cust_sno)
+               and (i_cust_biz is null or r.cust_biz = i_cust_biz)
+               and (i_cust_name is null or
+                   instr(r.cust_name, i_cust_name) &gt; 0)*/
+            --v101- end
+            --v101+ start
+            --�ͻ�����Ϊ&#39;����&#39;
+            select t.*,
+                    row_number() over(partition by null order by t.update_time desc) as rn
+              from (select r.status, --״̬��0-���� 1-ɾ��
+                            r.cust_sno, --�ͻ����
+                            r.cust_biz, --�ͻ�ҵ�����
+                            r.cust_category ||
+                            decode(r.cust_type, null, &#39;&#39;, &#39;-&#39; || r.cust_type) as cust_category, --���ʶ�/Ͷ�ʶ�-ecm/dcm
+                            r.cust_id, --�ͻ�id
+                            r.cust_name, --�ͻ�����
+                            r.update_user, --������
+                            r.update_time, --����ʱ��
+                            r.create_user,
+                            r.create_time,
+                            1 data_type,
+                            decode(r.cust_flag, &#39;����&#39;, &#39;0&#39;, &#39;1&#39;) cust_type, --�ͻ�����:0-������1-��Ȼ��
+                            o.work_no,
+                            u.staff_id,
+                            o.user_code as op_user_code, --��˴���
+                            o.user_name as op_user_name, --�������
+                            o.work_no || &#39;-&#39; || o.user_name as op_user_desc,
+                            cr.screen_name,
+                            cr.grade_name,
+                            nvl(f.is_riskcust, &#39;��&#39;) as is_riskcust,
+                            f.risk_type
+                       from thjs.vw_fxq_cust_info r
+                       left join thjs.Tb_Fxq_Cust_Operator o
+                         on o.cust_id = r.cust_id
+                       left join basic_th.wb_user u
+                         on o.work_no = u.user_id
+                       left join thjs.vw_fxq_cust_rsk cr
+                         on cr.cust_id = r.cust_id
+                       left join (select f.*,
+                                        row_number() over(partition by f.cust_id order by f.busi_date desc) as rn
+                                   from thjs.tb_fxq_risk_flow f) f --ȡ���º˲���
+                         on f.cust_id = r.cust_id
+                        and f.flow_staus = &#39;1&#39; --�����ѽ���
+                        and f.rn = 1
+                      where (r.cust_biz &lt;&gt; &#39;����&#39; or i_usercode = &#39;admin&#39;)
+                        and (i_cust_category is null or
+                            r.cust_category = i_cust_category)
+                        and (i_cust_sno is null or r.cust_sno = i_cust_sno)
+                        and (i_cust_biz is null or r.cust_biz = i_cust_biz)
+                        and (i_cust_name is null or
+                            instr(r.cust_name, trim(i_cust_name)) &gt; 0)
+                        and (i_rsk is null or
+                            nvl(cr.screen_name, &#39;���漰&#39;) =
+                            decode(i_rsk, &#39;1&#39;, &#39;�漰&#39;, &#39;���漰&#39;))
+                        and (i_is_risk is null or
+                            nvl(f.is_riskcust, &#39;��&#39;) =
+                            decode(i_is_risk, &#39;1&#39;, &#39;��&#39;, &#39;��&#39;))) t
+            --v101+ end
+            ) r
+    /*left join thjs.tb_dict_entry d
+     on d.entry_code = &#39;INDUSTRY_TYPE&#39;
+    and d.entry_value = r.industry_id*/
+      left join thjs.ib_v_userinfo c
+        on c.username = r.update_user
+      left join basic_th.wb_user u
+        on u.user_name = r.update_user
+      left join basic_th.wb_user u1
+        on u1.user_name = r.create_user
+     where r.rn &gt; v_page_num
+       and r.rn &lt;= v_page_num + v_page_size
+     order by r.rn;
+
+  commit;
+
+  o_return_msg  := &#39;ִ�гɹ�&#39;;
+  o_return_code := 0;
+
+exception
+  -- ��Ԥ�����쳣����
+  when v_userexp then
+    rollback;
+  
+    v_sqlerrm := sqlerrm;
+    v_sqlcode := sqlcode;
+    v_sqlerrl := dbms_utility.format_error_backtrace();
+  
+    hgman.p_write_error_log(i_tradedate    =&gt; v_tradedate,
+                            i_exec_func_id =&gt; v_exec_func_id,
+                            i_func_own     =&gt; v_func_own,
+                            i_func_name    =&gt; v_func_name,
+                            i_occur_time   =&gt; sysdate,
+                            i_sqlerrm      =&gt; v_sqlerrm,
+                            i_sqlcode      =&gt; v_sqlcode,
+                            i_sqlerrl      =&gt; v_sqlerrl);
+    commit;
+    raise;
+    -- Ԥ�����쳣����
+  when others then
+    rollback;
+  
+    v_sqlerrm := sqlerrm;
+    v_sqlcode := sqlcode;
+    v_sqlerrl := dbms_utility.format_error_backtrace();
+  
+    hgman.p_write_error_log(i_tradedate    =&gt; v_tradedate,
+                            i_exec_func_id =&gt; v_exec_func_id,
+                            i_func_own     =&gt; v_func_own,
+                            i_func_name    =&gt; v_func_name,
+                            i_occur_time   =&gt; sysdate,
+                            i_sqlerrm      =&gt; v_sqlerrm,
+                            i_sqlcode      =&gt; v_sqlcode,
+                            i_sqlerrl      =&gt; v_sqlerrl);
+    commit;
+    raise;
+end;
+</div>
+    <div class="stats">
+        📊 文件信息：12668 字节 | 12422 字符 | 278 行
+    </div>
+</body>
+</html>

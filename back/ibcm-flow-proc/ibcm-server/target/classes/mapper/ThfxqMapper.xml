@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gtja.dts.oaflow.mapper.thfxq.ThfxqMapper">
+
+    <resultMap id="feedBackResultMap" type="com.gtja.dts.oaflow.pojo.po.thfxq.FeedBack">
+        <result property="clientId" column="CLIENT_ID" jdbcType="VARCHAR"/>
+        <result property="clientName" column="CLIENT_NAME" jdbcType="VARCHAR"/>
+        <result property="screenCode" column="SCREEN_CODE" jdbcType="VARCHAR"/>
+        <result property="screenName" column="SCREEN_NAME" jdbcType="VARCHAR"/>
+        <result property="gradeValue" column="GRADE_VALUE" jdbcType="VARCHAR"/>
+        <result property="gradeName" column="GRADE_NAME" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="selectFeedBack" statementType="CALLABLE">
+        {call thjs.p_fxq_cust_rz_fk_q(
+        #{result, mode=OUT, jdbcType=CURSOR, javaType=java.sql.ResultSet, resultMap=feedBackResultMap},
+        #{clientId, mode=IN, jdbcType=INTEGER},
+        #{userId, mode=IN, jdbcType=VARCHAR},
+        #{returnMsg, mode=OUT, jdbcType=VARCHAR},
+        #{returnCode, mode=OUT, jdbcType=INTEGER}
+        )}
+    </select>
+
+    <select id="selectFeedBackDesc" statementType="CALLABLE">
+        {call thjs.p_fxq_cust_rz_fkd_q(
+        #{result, mode=OUT, jdbcType=CURSOR, javaType=java.sql.ResultSet, resultMap=feedBackResultMap},
+        #{clientId, mode=IN, jdbcType=INTEGER},
+        #{userId, mode=IN, jdbcType=VARCHAR},
+        #{returnMsg, mode=OUT, jdbcType=VARCHAR},
+        #{returnCode, mode=OUT, jdbcType=INTEGER}
+        )}
+    </select>
+
+</mapper>

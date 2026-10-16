@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <pluginGroups>
+    <!-- pluginGroup
+     | Specifies a further group identifier to use for plugin lookup.
+    <pluginGroup>com.your.plugins</pluginGroup>
+    -->
+  </pluginGroups>
+
+  <proxies>
+
+    <proxy>
+      <id>optional</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <username>proxyuser</username>
+      <password>proxypass</password>
+      <host>172.16.0.1</host>
+      <port>3128</port>
+      <nonProxyHosts>10.187.144.11</nonProxyHosts>
+    </proxy>
+  </proxies>
+
+  <servers>
+
+    <server>
+      <id>ggzj</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+    <server>
+      <id>ggzj-snapshot</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+
+
+
+
+
+
+
+    <server>
+      <id>default</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+    <server>
+      <id>dts</id>
+      <username>jiangshanshan</username>
+      <password>JIANGshanshan@1104</password>
+    </server>
+
+    <server>
+      <id>dzsw</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+    <server>
+      <id>dzsw-snapshots</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+    <server>
+      <id>mochasoft</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+
+
+    <server>
+      <id>alimaven</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server> 
+    
+    <server>
+      <id>gtjavis</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+    
+    <server>
+      <id>cxyw</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+    
+    <server>
+      <id>cxyw-snapshots</id>
+      <username>nexusUser</username>
+      <password>n2eOx2u2s@gtjaTEST</password>
+    </server>
+
+  </servers>
+
+  <mirrors>
+
+    <mirror>
+      <id>ggzj</id>
+      <mirrorOf>ggzj</mirrorOf>
+      <name>ggzj</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/ggzj/</url>
+    </mirror>
+
+    <mirror>
+      <id>ggzj-snapshot</id>
+      <mirrorOf>ggzj-snapshot</mirrorOf>
+      <name>ggzj-snapshot</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/ggzj-snapshot/</url>
+    </mirror>
+
+
+
+
+
+
+   
+    <mirror>
+      <id>dzsw</id>
+      <name>dzsw</name>
+      <mirrorOf>dzsw-maven</mirrorOf>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/dzsw-maven/</url>
+    </mirror>
+
+    <mirror>
+      <id>dzsw-snapshots</id>
+      <name>dzsw-snapshots</name>
+      <mirrorOf>dzsw-maven-snapshot</mirrorOf>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/dzsw-maven-snapshot/</url>
+    </mirror>
+
+    <mirror>
+      <id>dts</id>
+      <name>dts</name>
+      <mirrorOf>dts-maven</mirrorOf>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/dts-maven/</url>
+    </mirror>
+
+    <mirror>
+      <id>default</id>
+      <name>default</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/central/</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+
+    <mirror>
+      <id>mochasoft</id>
+      <mirrorOf>mochasoft-public</mirrorOf>
+      <name>mochasoft</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/mochasoft-public/</url>
+    </mirror>
+
+    <mirror>
+      <id>alimaven</id>
+      <mirrorOf>aliyun</mirrorOf>
+      <name>maven2</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/aliyun/central/</url>
+    </mirror>
+
+    <mirror>
+      <id>gtjavis</id>
+      <mirrorOf>gtjavis</mirrorOf>
+      <name>gtjavis</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/gtjavis/</url>
+    </mirror>
+
+    <mirror>
+      <id>cxyw</id>
+      <name>cxyw</name>
+      <mirrorOf>cxyw-maven</mirrorOf>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven/</url>
+    </mirror>
+
+    <mirror>
+      <id>cxyw-snapshots</id>
+      <mirrorOf>cxyw-maven-snapshot</mirrorOf>
+      <name>cxyw-snapshots</name>
+      <url>http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven-snapshot/</url>
+    </mirror>
+
+  </mirrors>
+
+  <profiles>
+    
+    <profile>
+      <id>default</id> 
+      <repositories>
+        <repository>
+          <id>default</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/central/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>cxyw</id> 
+      <repositories>
+        <repository>
+          <id>cxyw</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>cxyw-snapshots</id> 
+      <repositories>
+        <repository>
+          <id>cxyw-snapshots</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven-snapshot/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>ggzj-snapshot</id> 
+      <repositories>
+        <repository>
+          <id>ggzj-snapshot</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/ggzj-snapshot/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>ggzj</id> 
+      <repositories>
+        <repository>
+          <id>ggzj</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/ggzj/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>dzsw</id> 
+      <repositories>
+        <repository>
+          <id>dzsw</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/dzsw-maven/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>dts</id> 
+      <repositories>
+        <repository>
+          <id>dts</id> 
+          <url>http://10.187.144.11:8081/nexus/content/repositories/dts-maven/</url> 
+          <releases>
+            <enabled>true</enabled>
+          </releases> 
+          <snapshots>
+            <enabled>true</enabled> 
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>ggzj-snapshot</activeProfile>
+    <activeProfile>ggzj</activeProfile>
+
+    <activeProfile>default</activeProfile>
+   <!--  <activeProfile>cxyw</activeProfile>
+    <activeProfile>dts</activeProfile>
+    <activeProfile>ggzj-snapshot</activeProfile>
+    <activeProfile>ggzj</activeProfile>
+    <activeProfile>dzsw</activeProfile>
+    <activeProfile>cxyw-snapshots</activeProfile> -->
+  </activeProfiles>
+</settings>

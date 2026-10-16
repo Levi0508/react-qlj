@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本预览 - xmlversion=1.0e.txt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filename {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .fileinfo {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="filename">📄 xmlversion=1.0e.txt</div>
+        <div class="fileinfo">文本文件 • 8.12 KB</div>
+    </div>
+    <div class="content">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+
+&lt;settings xmlns=&quot;http://maven.apache.org/SETTINGS/1.0.0&quot;
+          xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+          xsi:schemaLocation=&quot;http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd&quot;&gt;
+
+  &lt;pluginGroups&gt;
+    &lt;!-- pluginGroup
+     | Specifies a further group identifier to use for plugin lookup.
+    &lt;pluginGroup&gt;com.your.plugins&lt;/pluginGroup&gt;
+    --&gt;
+  &lt;/pluginGroups&gt;
+
+  &lt;proxies&gt;
+
+    &lt;proxy&gt;
+      &lt;id&gt;optional&lt;/id&gt;
+      &lt;active&gt;true&lt;/active&gt;
+      &lt;protocol&gt;http&lt;/protocol&gt;
+      &lt;username&gt;proxyuser&lt;/username&gt;
+      &lt;password&gt;proxypass&lt;/password&gt;
+      &lt;host&gt;172.16.0.1&lt;/host&gt;
+      &lt;port&gt;3128&lt;/port&gt;
+      &lt;nonProxyHosts&gt;10.187.144.11&lt;/nonProxyHosts&gt;
+    &lt;/proxy&gt;
+  &lt;/proxies&gt;
+
+  &lt;servers&gt;
+
+    &lt;server&gt;
+      &lt;id&gt;ggzj&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+    &lt;server&gt;
+      &lt;id&gt;ggzj-snapshot&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+
+
+
+
+
+
+
+    &lt;server&gt;
+      &lt;id&gt;default&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+    &lt;server&gt;
+      &lt;id&gt;dts&lt;/id&gt;
+      &lt;username&gt;jiangshanshan&lt;/username&gt;
+      &lt;password&gt;JIANGshanshan@1104&lt;/password&gt;
+    &lt;/server&gt;
+
+    &lt;server&gt;
+      &lt;id&gt;dzsw&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+    &lt;server&gt;
+      &lt;id&gt;dzsw-snapshots&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+    &lt;server&gt;
+      &lt;id&gt;mochasoft&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+
+
+    &lt;server&gt;
+      &lt;id&gt;alimaven&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt; 
+    
+    &lt;server&gt;
+      &lt;id&gt;gtjavis&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+    
+    &lt;server&gt;
+      &lt;id&gt;cxyw&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+    
+    &lt;server&gt;
+      &lt;id&gt;cxyw-snapshots&lt;/id&gt;
+      &lt;username&gt;nexusUser&lt;/username&gt;
+      &lt;password&gt;n2eOx2u2s@gtjaTEST&lt;/password&gt;
+    &lt;/server&gt;
+
+  &lt;/servers&gt;
+
+  &lt;mirrors&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;ggzj&lt;/id&gt;
+      &lt;mirrorOf&gt;ggzj&lt;/mirrorOf&gt;
+      &lt;name&gt;ggzj&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/ggzj/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;ggzj-snapshot&lt;/id&gt;
+      &lt;mirrorOf&gt;ggzj-snapshot&lt;/mirrorOf&gt;
+      &lt;name&gt;ggzj-snapshot&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/ggzj-snapshot/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+
+
+
+
+
+   
+    &lt;mirror&gt;
+      &lt;id&gt;dzsw&lt;/id&gt;
+      &lt;name&gt;dzsw&lt;/name&gt;
+      &lt;mirrorOf&gt;dzsw-maven&lt;/mirrorOf&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/dzsw-maven/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;dzsw-snapshots&lt;/id&gt;
+      &lt;name&gt;dzsw-snapshots&lt;/name&gt;
+      &lt;mirrorOf&gt;dzsw-maven-snapshot&lt;/mirrorOf&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/dzsw-maven-snapshot/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;dts&lt;/id&gt;
+      &lt;name&gt;dts&lt;/name&gt;
+      &lt;mirrorOf&gt;dts-maven&lt;/mirrorOf&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/dts-maven/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;default&lt;/id&gt;
+      &lt;name&gt;default&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/central/&lt;/url&gt;
+      &lt;mirrorOf&gt;central&lt;/mirrorOf&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;mochasoft&lt;/id&gt;
+      &lt;mirrorOf&gt;mochasoft-public&lt;/mirrorOf&gt;
+      &lt;name&gt;mochasoft&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/mochasoft-public/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;alimaven&lt;/id&gt;
+      &lt;mirrorOf&gt;aliyun&lt;/mirrorOf&gt;
+      &lt;name&gt;maven2&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/aliyun/central/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;gtjavis&lt;/id&gt;
+      &lt;mirrorOf&gt;gtjavis&lt;/mirrorOf&gt;
+      &lt;name&gt;gtjavis&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/gtjavis/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;cxyw&lt;/id&gt;
+      &lt;name&gt;cxyw&lt;/name&gt;
+      &lt;mirrorOf&gt;cxyw-maven&lt;/mirrorOf&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+    &lt;mirror&gt;
+      &lt;id&gt;cxyw-snapshots&lt;/id&gt;
+      &lt;mirrorOf&gt;cxyw-maven-snapshot&lt;/mirrorOf&gt;
+      &lt;name&gt;cxyw-snapshots&lt;/name&gt;
+      &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven-snapshot/&lt;/url&gt;
+    &lt;/mirror&gt;
+
+  &lt;/mirrors&gt;
+
+  &lt;profiles&gt;
+    
+    &lt;profile&gt;
+      &lt;id&gt;default&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;default&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/central/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+
+    &lt;profile&gt;
+      &lt;id&gt;cxyw&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;cxyw&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+
+    &lt;profile&gt;
+      &lt;id&gt;cxyw-snapshots&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;cxyw-snapshots&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/cxyw-maven-snapshot/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+
+    &lt;profile&gt;
+      &lt;id&gt;ggzj-snapshot&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;ggzj-snapshot&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/ggzj-snapshot/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+
+    &lt;profile&gt;
+      &lt;id&gt;ggzj&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;ggzj&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/ggzj/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+
+    &lt;profile&gt;
+      &lt;id&gt;dzsw&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;dzsw&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/dzsw-maven/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+
+    &lt;profile&gt;
+      &lt;id&gt;dts&lt;/id&gt; 
+      &lt;repositories&gt;
+        &lt;repository&gt;
+          &lt;id&gt;dts&lt;/id&gt; 
+          &lt;url&gt;http://10.187.144.11:8081/nexus/content/repositories/dts-maven/&lt;/url&gt; 
+          &lt;releases&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt;
+          &lt;/releases&gt; 
+          &lt;snapshots&gt;
+            &lt;enabled&gt;true&lt;/enabled&gt; 
+            &lt;updatePolicy&gt;always&lt;/updatePolicy&gt;
+          &lt;/snapshots&gt;
+        &lt;/repository&gt;
+      &lt;/repositories&gt;
+    &lt;/profile&gt;
+  &lt;/profiles&gt;
+
+  &lt;activeProfiles&gt;
+    &lt;activeProfile&gt;ggzj-snapshot&lt;/activeProfile&gt;
+    &lt;activeProfile&gt;ggzj&lt;/activeProfile&gt;
+
+    &lt;activeProfile&gt;default&lt;/activeProfile&gt;
+   &lt;!--  &lt;activeProfile&gt;cxyw&lt;/activeProfile&gt;
+    &lt;activeProfile&gt;dts&lt;/activeProfile&gt;
+    &lt;activeProfile&gt;ggzj-snapshot&lt;/activeProfile&gt;
+    &lt;activeProfile&gt;ggzj&lt;/activeProfile&gt;
+    &lt;activeProfile&gt;dzsw&lt;/activeProfile&gt;
+    &lt;activeProfile&gt;cxyw-snapshots&lt;/activeProfile&gt; --&gt;
+  &lt;/activeProfiles&gt;
+&lt;/settings&gt;</div>
+    <div class="stats">
+        📊 文件信息：8314 字节 | 8314 字符 | 328 行
+    </div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+server:
+  port: 8094
+  tomcat:
+    max-http-post-size: 10MB  #请求参数长度
+    max-swallow-size: 10MB
+    basedir: /tmp/tomcat
+  servlet:
+    context-path:
+  max-http-header-size: 10MB
+spring:
+  application:
+    name: hg-oa-flow
+  datasource:
+    url: jdbc:dm://10.187.112.168:8002?schema=PIS
+    username: SYSDBA
+    password: '1qaz@WSX'
+    driverClassName: dm.jdbc.driver.DmDriver
+#  datasource:
+#    url: jdbc:dm://10.187.65.3:8081
+#    username: hgpt
+#    password: 'gtja080831'
+#    driverClassName: dm.jdbc.driver.DmDriver
+  kafka:
+    bootstrap-servers: 10.189.110.225:9092,10.189.110.226:9092,10.189.110.227:9092
+  servlet:
+    multipart:
+      max-file-size: 10MB # 单个文件最大 10MB
+      maxRequestSize: 100MB # 单个请求最大 100 MB
+#流程sdk使用的配置信息
+flow:
+  feign:
+    connectTimeoutMillis: 40000
+    readTimeoutMillis: 40000
+  config:
+    #flowpoc
+    flowGatewayHost: 10.168.96.6:8055
+    #流程租户
+    tenantCode: gtja
+    sdkCode: hgpt001
+    #系统id
+    systemId: IBCM
+    Key: e6339c8d-dbb3-4935-b773-8938e32fa908
+    secretKey: 019f5ecf-9340-4bd2-9b67-9713ec55c31a
+  datasource:
+    username: hgpt
+mybatis-plus:
+  global-config:
+    banner: false
+    db-config:
+      #字段策略 0:"忽略判断",1:"非 NULL 判断"),2:"非空判断"
+      select-strategy: not-empty
+      insert-strategy: not-null
+      update-strategy: not-null
+      idType: AUTO
+  mapper-locations: classpath*:/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+#流程起草接口URL
+link.flow.path: http://10.168.96.10:9059/flowCommon/serviceFlowApi
+#文号生成接口地址
+link.wh.path: http://10.168.96.10:9059/flowCommon/flowApi
+#文件上传地址
+file.save.path: .\upload_file\
+#文件上传地址
+file.copy.tmp.path: /home/project/copy_file_tmp/
+# 共享文件下载地址
+file.hgpt.local.path: /hgpt_files
+# 警示函共享文件下载地址
+file.ycjy.local.path: /ycjy_files
+
+# 文件预览相关配置
+libreoffice:
+  # LibreOffice安装路径（信创Linux环境）
+  # Windows环境: D:\LibreOffice\program
+  # Linux环境: /data/libreoffice/program
+  path: /data/libreoffice/program
+file:
+  preview:
+    # 预览文件临时存储路径
+    temp:
+      path: /data/app/ibcm_java/temp/preview
+
+
+auto:
+  applyTitle: '债券交易情况填报表'
+  creator: '014854'
+  flowVer: '8'
+  cron: '0 0/10 9-10 * * ?'
+  state: 'false'
+  flowVerBj: '1'
+  flowVerSz: '1'
+
+ftp:
+  port: 8080
+  server: 10.181.135.25 #10.181.135.25
+  user: administrator
+  password: Wsqszdx#080831
+  down-load-path: /user/loacl
+
+smb:
+  #远程 Windows 服务器地址
+  server: 10.180.110.60
+  #远程 Windows 服务器的用户名
+  user: NCadmin
+  #远程 Windows 服务器的密码
+  password: NC@gtja685
+  #远程 共享文件夹名称
+  share: NCcaiwu
+  #远程 盘符名称
+  disk: hgpt

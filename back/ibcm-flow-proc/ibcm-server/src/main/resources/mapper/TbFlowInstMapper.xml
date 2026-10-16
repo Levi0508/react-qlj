@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gtja.dts.oaflow.mapper.thfxq.TbFlowInstMapper">
+
+    <resultMap id="ClientFlowSubmitVOMap" type="com.gtja.dts.oaflow.pojo.vo.thfxq.ClientFlowSubmitVO">
+        <result property="flowId" column="FLOW_ID" jdbcType="VARCHAR"/>
+        <result property="bizKey" column="BIZ_KEY" jdbcType="VARCHAR"/>
+        <result property="raiseCode" column="RAISE_CODE" jdbcType="VARCHAR"/>
+        <result property="clientId" column="CLIENT_ID" jdbcType="VARCHAR"/>
+        <result property="clientName" column="CLIENT_NAME" jdbcType="VARCHAR"/>
+        <result property="organFlag" column="ORGAN_FLAG" jdbcType="VARCHAR"/>
+        <result property="clientBelong" column="CLIENT_BELONG" jdbcType="VARCHAR"/>
+        <result property="clientStatus" column="CLIENT_STATUS" jdbcType="VARCHAR"/>
+        <result property="newMaintainer" column="NEW_MAINTAINER" jdbcType="VARCHAR"/>
+        <result property="maintainerUserId" column="MAINTAINER_USER_ID" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="selectUnsentByIdExpiry" resultMap="ClientFlowSubmitVOMap">
+        SELECT * FROM (
+        SELECT i.flow_id,
+        i.biz_key,
+        i.raise_code,
+        c.client_id,
+        c.client_name,
+        c.organ_flag,
+        c.client_belong,
+        c.client_status,
+        m.new_maintainer,
+        w.user_id AS maintainer_user_id,
+        ROW_NUMBER() OVER (ORDER BY i.op_time ASC) AS rn
+        FROM thjs.tb_flow_inst i
+        LEFT JOIN thjs.t_th_client_info c
+        ON i.biz_key = c.client_id
+        LEFT JOIN thjs.t_maintainer_info m
+        ON c.client_id = m.client_id
+        LEFT JOIN basic_thjs.wb_user w
+        ON m.new_maintainer = w.user_name
+        WHERE i.send_status = '0'
+        AND i.raise_code = #{raiseCode,jdbcType=VARCHAR}
+        ) WHERE rn &lt;= #{limit,jdbcType=INTEGER}
+    </select>
+
+</mapper>
