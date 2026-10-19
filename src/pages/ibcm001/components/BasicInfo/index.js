@@ -1,10 +1,29 @@
 import { Checkbox, Col, DatePicker, Form, Icon, Input, Radio, Row, Select, Tooltip, Button, Popconfirm, message, Modal, Card, Table } from 'antd';
+import { Resizable } from 'react-resizable';
+import 'react-resizable/css/styles.css';
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import styles from './index.module.less';
 import dataManager from '../../utils/dataManager';
 import services from '../../services/index';
 import useFilePreviewWindow from '@/hooks/useFilePreviewWindow';
+
+const ResizeableTitle = (props) => {
+    const { onResize, width, ...restProps } = props;
+    if (!width) {
+        return <th {...restProps} />;
+    }
+    return (
+        <Resizable
+            width={width}
+            height={0}
+            onResize={onResize}
+            draggableOpts={{ enableUserSelectHack: false }}
+        >
+            <th {...restProps} />
+        </Resizable>
+    );
+};
 
 function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, attachmentUpdateTime = 0, isSpecial = '0', curNode = {} }) {
     // 格式化数据字典显示
@@ -16,6 +35,64 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
 
     // 内部维护的isSpecial状态，用于动态响应表单值变化
     const [currentIsSpecial, setCurrentIsSpecial] = useState(isSpecial);
+
+    const [attachmentColumnWidths, setAttachmentColumnWidths] = useState({
+        name: 280,
+        extension: 120,
+        create_by: 140,
+        create_time: 180,
+        action: 120
+    });
+
+    const handleAttachmentColumnResize = (columnKey) => (e, { size }) => {
+        setAttachmentColumnWidths(prev => ({
+            ...prev,
+            [columnKey]: size.width
+        }));
+    };
+
+    const attachmentTableComponents = {
+        header: {
+            cell: ResizeableTitle,
+        },
+    };
+
+    useEffect(() => {
+        const styleId = 'basic-info-attachment-resize-style';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                .basic-info-attachment-table .ant-table-thead > tr > th {
+                    position: relative;
+                }
+                .basic-info-attachment-table .react-resizable {
+                    position: relative;
+                    background-clip: padding-box;
+                }
+                .basic-info-attachment-table .react-resizable-handle {
+                    position: absolute;
+                    right: -5px;
+                    bottom: 0;
+                    z-index: 1;
+                    width: 10px;
+                    height: 100%;
+                    cursor: col-resize;
+                    background-image: none;
+                }
+                .basic-info-attachment-table .react-resizable-handle::after {
+                    content: '';
+                    position: absolute;
+                    right: 4px;
+                    top: 20%;
+                    height: 60%;
+                    width: 2px;
+                    background: #d9d9d9;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }, []);
 
     // 监听表单中is_special字段的变化
 
@@ -466,40 +543,60 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
         });
     };
 
-    // 附件表格列定义
+    // 附件表格列定义（支持拖拽调整列宽）
     const attachmentColumns = [
         {
             title: '附件名称',
             dataIndex: 'name',
             key: 'name',
+            width: attachmentColumnWidths.name,
             sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('name'),
+            }),
         },
         {
             title: '附件类型',
             dataIndex: 'extension',
             key: 'extension',
+            width: attachmentColumnWidths.extension,
             sorter: (a, b) => (a.extension || '').localeCompare(b.extension || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('extension'),
+            }),
         },
         {
             title: '上传人',
             dataIndex: 'create_by',
             key: 'create_by',
+            width: attachmentColumnWidths.create_by,
             sorter: (a, b) => (a.create_by || '').localeCompare(b.create_by || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('create_by'),
+            }),
         },
         {
             title: '上传时间',
             dataIndex: 'create_time',
             key: 'create_time',
+            width: attachmentColumnWidths.create_time,
             sorter: (a, b) => (a.create_time || '').localeCompare(b.create_time || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('create_time'),
+            }),
         },
         {
             title: '操作',
             key: 'action',
-            width: 120,
+            width: attachmentColumnWidths.action,
             render: (_, record) => (
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <Button
@@ -520,7 +617,11 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
                         预览
                     </Button>
                 </div>
-            )
+            ),
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('action'),
+            }),
         }
     ];
 
@@ -1214,13 +1315,16 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
                     </Tooltip>
                 </div>
                 <Table
+                    className="basic-info-attachment-table"
                     columns={attachmentColumns}
+                    components={attachmentTableComponents}
                     dataSource={attachmentList}
                     rowKey="id"
                     pagination={false}
                     size="middle"
                     bordered={false}
                     loading={loading}
+                    scroll={{ x: 840 }}
                     locale={{
                         emptyText: '暂无附件信息'
                     }}
