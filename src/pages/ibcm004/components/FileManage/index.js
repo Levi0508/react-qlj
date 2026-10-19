@@ -63,6 +63,9 @@ function FileManage({
         action: 120
     });
 
+    // 左侧目录树宽度（可拖拽调整）
+    const [leftPanelWidth, setLeftPanelWidth] = useState(300);
+
     // 上传相关状态
     const [uploading, setUploading] = useState(false);
     const [uploadFileList, setUploadFileList] = useState([]);
@@ -80,6 +83,27 @@ function FileManage({
             ...prev,
             [columnKey]: size.width
         }));
+    };
+
+    // ========== 左侧面板宽度拖拽 ==========
+    const handleLeftPanelResizeStart = (e) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startWidth = leftPanelWidth;
+        const onMove = (ev) => {
+            const next = Math.min(Math.max(startWidth + (ev.clientX - startX), 180), 520);
+            setLeftPanelWidth(next);
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
     };
 
     useEffect(() => {
@@ -713,8 +737,8 @@ function FileManage({
                     className="left-panel"
                     ref={leftPanelRef}
                     style={{
-                        width: '300px',
-                        borderRight: '1px solid #f0f0f0',
+                        width: `${leftPanelWidth}px`,
+                        flexShrink: 0,
                         padding: '16px',
                         overflowY: 'auto'
                     }}
@@ -756,8 +780,36 @@ function FileManage({
                     </div>
                 </div>
 
+                {/* 可拖拽分隔条：调整目录树与附件清单宽度 */}
+                <div
+                    onMouseDown={handleLeftPanelResizeStart}
+                    title="拖拽调整目录宽度"
+                    style={{
+                        width: '6px',
+                        flexShrink: 0,
+                        cursor: 'col-resize',
+                        background: '#f0f0f0',
+                        position: 'relative',
+                        zIndex: 2,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#91d5ff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#f0f0f0'; }}
+                >
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '4px',
+                        height: '48px',
+                        background: '#bfbfbf',
+                        borderRadius: '2px',
+                        pointerEvents: 'none',
+                    }} />
+                </div>
+
                 {/* 右侧附件列表 */}
-                <div className="right-panel" style={{ flex: 1, padding: '16px', overflow: 'auto'  }}>
+                <div className="right-panel" style={{ flex: 1, minWidth: 0, padding: '16px', overflow: 'auto' }}>
                     {!selectedMenu ? (
                         <div style={{
                             color: '#8d8b8b',
@@ -942,6 +994,31 @@ function FileManage({
                 
                 .ant-btn-link[data-draggable="true"]:hover {
                     text-decoration: underline;
+                }
+
+                /* 表头列宽拖拽手柄 */
+                #attachmentManager .react-resizable {
+                    position: relative;
+                    background-clip: padding-box;
+                }
+                #attachmentManager .react-resizable-handle {
+                    position: absolute;
+                    right: -5px;
+                    bottom: 0;
+                    z-index: 1;
+                    width: 10px;
+                    height: 100%;
+                    cursor: col-resize;
+                    background: transparent;
+                }
+                #attachmentManager .react-resizable-handle::after {
+                    content: '';
+                    position: absolute;
+                    right: 4px;
+                    top: 20%;
+                    height: 60%;
+                    width: 2px;
+                    background: #d9d9d9;
                 }
             `}</style>
         </Card>

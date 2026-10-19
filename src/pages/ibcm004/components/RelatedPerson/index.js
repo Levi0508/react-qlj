@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Tag, Table, Button, message, Modal, Form, Input, Select, DatePicker, Radio, Divider, AutoComplete, Tooltip, Icon } from 'antd';
+import { Resizable } from 'react-resizable';
+import 'react-resizable/css/styles.css';
 import moment from 'moment';
 import services from '../../services/index';
 import store from '@/store';
@@ -7,6 +9,26 @@ import useFilePreviewWindow from '@/hooks/useFilePreviewWindow';
 
 const { Option } = Select;
 const { TextArea } = Input;
+
+// ========== 可拖拽表头组件 ==========
+const ResizeableTitle = (props) => {
+    const { onResize, width, ...restProps } = props;
+
+    if (!width) {
+        return <th {...restProps} />;
+    }
+
+    return (
+        <Resizable
+            width={width}
+            height={0}
+            onResize={onResize}
+            draggableOpts={{ enableUserSelectHack: false }}
+        >
+            <th {...restProps} />
+        </Resizable>
+    );
+};
 
 function RelatedPerson({
     title,
@@ -27,6 +49,28 @@ function RelatedPerson({
 }) {
     // 是否政府部门状态（用于判断是否跳过某些字段校验）
     const [isGovernmentDept, setIsGovernmentDept] = useState('0');
+
+    // 附件表格列宽（可拖拽调整）
+    const [attachmentColumnWidths, setAttachmentColumnWidths] = useState({
+        name: 200,
+        extension: 120,
+        createBy: 150,
+        createTime: 180,
+        action: 120
+    });
+
+    const handleAttachmentColumnResize = (columnKey) => (e, { size }) => {
+        setAttachmentColumnWidths(prev => ({
+            ...prev,
+            [columnKey]: size.width
+        }));
+    };
+
+    const attachmentTableComponents = {
+        header: {
+            cell: ResizeableTitle,
+        },
+    };
 
     // 证件号码校验提示状态（已移除，校验逻辑已统一到baseActions.js中）
     // const [idNoError, setIdNoError] = useState('');
@@ -799,6 +843,30 @@ function RelatedPerson({
                 }
                 .related-person-attachment-table .ant-table-thead > tr > th {
                     white-space: normal !important;
+                    position: relative;
+                }
+                .related-person-attachment-table .react-resizable {
+                    position: relative;
+                    background-clip: padding-box;
+                }
+                .related-person-attachment-table .react-resizable-handle {
+                    position: absolute;
+                    right: -5px;
+                    bottom: 0;
+                    z-index: 1;
+                    width: 10px;
+                    height: 100%;
+                    cursor: col-resize;
+                    background: transparent;
+                }
+                .related-person-attachment-table .react-resizable-handle::after {
+                    content: '';
+                    position: absolute;
+                    right: 4px;
+                    top: 20%;
+                    height: 60%;
+                    width: 2px;
+                    background: #d9d9d9;
                 }
             `;
             document.head.appendChild(style);
@@ -807,50 +875,66 @@ function RelatedPerson({
         };
     }, []);
 
-    //附件表格列定义
+    //附件表格列定义（支持拖拽调整列宽）
     const attachmentColumns = [
         {
             title: '附件名称',
             dataIndex: 'name',
             key: 'name',
-            width: 200,
+            width: attachmentColumnWidths.name || 200,
             sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
             render: (text) => (
                 <Tooltip title={text} placement="topLeft">
                     <span style={{ whiteSpace: 'normal', wordBreak: 'break-all', display: 'inline-block' }}>{text || '-'}</span>
                 </Tooltip>
-            )
+            ),
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('name'),
+            }),
         },
         {
             title: '附件类型',
             dataIndex: 'extension',
             key: 'extension',
-            width: 120,
+            width: attachmentColumnWidths.extension || 120,
             sorter: (a, b) => (a.extension || '').localeCompare(b.extension || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('extension'),
+            }),
         },
         {
             title: '上传人',
             dataIndex: 'createBy',
             key: 'createBy',
-            width: 150,
+            width: attachmentColumnWidths.createBy || 150,
             ellipsis: true,
             sorter: (a, b) => (a.createBy || '').localeCompare(b.createBy || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('createBy'),
+            }),
         },
         {
             title: '上传时间',
             dataIndex: 'createTime',
             key: 'createTime',
-            width: 180,
+            width: attachmentColumnWidths.createTime || 180,
             ellipsis: true,
             sorter: (a, b) => (a.createTime || '').localeCompare(b.createTime || ''),
-            render: (text) => text || '-'
+            render: (text) => text || '-',
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('createTime'),
+            }),
         },
         {
             title: '操作',
             key: 'action',
-            width: 120,
+            width: attachmentColumnWidths.action || 120,
             render: (_, record) => (
                 <div style={{ display: 'flex', flexWrap: 'nowrap', overflow: 'hidden' }}>
                     <Button
@@ -871,7 +955,11 @@ function RelatedPerson({
                         预览
                     </Button>
                 </div>
-            )
+            ),
+            onHeaderCell: (column) => ({
+                width: column.width,
+                onResize: handleAttachmentColumnResize('action'),
+            }),
         }
     ];
 
@@ -1044,6 +1132,7 @@ function RelatedPerson({
                     <Table
                         dataSource={attachments}
                         columns={attachmentColumns}
+                        components={attachmentTableComponents}
                         pagination={false}
                         size="small"
                         className="related-person-attachment-table"

@@ -62,6 +62,7 @@ class CustomForm extends React.Component {
       attachmentUpdateTime: 0, // 附件更新时间戳，用于触发子组件重新查询
       formEditable: false, // 表单组件编辑权限
       reviewEditable: false, // 审核记录编辑权限
+      reviewPanelWidth: 400, // 右侧审核记录面板宽度（可拖拽调整）
     }
     this.fileManageRef = React.createRef();
     this.fxqSpecialRef = React.createRef(); // 添加 FxqSpecial 组件的 ref
@@ -1138,6 +1139,27 @@ class CustomForm extends React.Component {
     return result;
   }
 
+  // 拖拽调整右侧审核记录面板宽度
+  handleReviewPanelResizeStart = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = this.state.reviewPanelWidth || 400;
+    const onMove = (ev) => {
+      const next = Math.min(Math.max(startWidth + (startX - ev.clientX), 280), 720);
+      this.setState({ reviewPanelWidth: next });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   render() {
     const { form } = this.props;
     const {
@@ -1156,7 +1178,8 @@ class CustomForm extends React.Component {
       dictData,
       tiid,
       piid,
-      attachmentUpdateTime
+      attachmentUpdateTime,
+      reviewPanelWidth
     } = this.state;
 
     // 获取反洗钱特殊情况选择值
@@ -1601,11 +1624,38 @@ class CustomForm extends React.Component {
                   )}
                 </div>
 
+                {/* 中间：可拖拽分隔条 */}
+                <div
+                  onMouseDown={this.handleReviewPanelResizeStart}
+                  title="拖拽调整审核记录宽度"
+                  style={{
+                    width: '6px',
+                    flexShrink: 0,
+                    cursor: 'col-resize',
+                    background: '#e8e8e8',
+                    position: 'relative',
+                    zIndex: 2,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#91d5ff'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#e8e8e8'; }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '4px',
+                    height: '48px',
+                    background: '#bfbfbf',
+                    borderRadius: '2px',
+                    pointerEvents: 'none',
+                  }} />
+                </div>
+
                 {/* 右侧：审核意见面板 */}
                 <div style={{
-                  width: '400px',
+                  width: `${reviewPanelWidth || 400}px`,
                   flexShrink: 0,
-                  borderLeft: '1px solid #e8e8e8',
                   padding: '16px 0 0 0',
                   overflowY: 'auto',
                   background: '#fafafa'
