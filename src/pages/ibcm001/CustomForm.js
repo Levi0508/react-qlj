@@ -508,7 +508,7 @@ class CustomForm extends React.Component {
     }
   }
 
-  // 审核节点（hgrysh）打印导出前的必填校验，规则与 v10 编辑页 submit() 保持一致（老版本受益人规则）
+  // 填写节点（xmzqr）导出前的必填校验，规则与 v10 编辑页 submit() 保持一致（老版本受益人规则）
   validateBeforeExport = () => {
     const { basicInfo = {}, relatedInfo = {} } = this.state;
     const isEmpty = (val) => val === null || val === undefined || String(val).trim() === '';
@@ -607,7 +607,7 @@ class CustomForm extends React.Component {
 
     if (msgs.length > 0) {
       Modal.warning({
-        title: '客户信息不完整，请补充并提交后再导出PDF',
+        title: '客户信息不完整，请补充完整并保存后再导出PDF',
         width: 560,
         content: (
           <div style={{ maxHeight: 400, overflowY: 'auto' }}>
@@ -741,7 +741,7 @@ class CustomForm extends React.Component {
       }
     }
 
-    if (this.state.curNode?.nodeCode === 'hgrysh' && !this.validateBeforeExport()) return;
+    if (this.state.curNode?.nodeCode === 'xmzqr' && !this.validateBeforeExport()) return;
 
     if (!this.pdfRef.current) {
       message.error('PDF内容未就绪');
