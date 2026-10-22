@@ -30,6 +30,8 @@ import dataManager from './utils/dataManager';
 // import PDFExporter from './utils/PDFExporter';
 
 const { Item } = Form;
+
+const formatUpdateTime = (val) => (val ? String(val).replace(/\.\d+$/, '') : '-');
 const { Option } = Select;
 const { MonthPicker } = DatePicker;
 const { TextArea } = Input;
@@ -537,6 +539,118 @@ class CustomForm extends React.Component {
       // 失败时不更新状态
     }
   }
+  // 审核节点（fxqkhdy）打印导出前的必填校验，规则与 v10 编辑页 submit() 保持一致（老版本受益人规则）
+  validateBeforeExport = () => {
+    const { basicInfo = {}, relatedInfo = {} } = this.state;
+    const isEmpty = (val) => val === null || val === undefined || String(val).trim() === '';
+    const splitVal = (val) => (Array.isArray(val) ? val : (isEmpty(val) ? [] : String(val).split(',')));
+    const isOrgan = (basicInfo.organ_flag || '1') === '1';
+    const legalRep = relatedInfo.legalRep || [];
+    const controllingShareholder = relatedInfo.controllingShareholder || [];
+    const actualController = relatedInfo.actualController || [];
+    const authorizedRep = relatedInfo.authorizedRep || [];
+    const beneficialOwner = relatedInfo.beneficialOwner || [];
+    const fieldLabels = {
+      client_name: '客户名称', office_address: '办公地址', register_country: '注册国家地区',
+      register_money_type: '注册资金币种', register_fund: '注册资本金', industry_type: '行业分类',
+      industry_name: '行业注明', tel: '联系电话', setup_date: '成立日期', id_type: '证件类型',
+      id_no: '证件号码', id_begindate: '证件有效期起始日期', id_enddate: '证件有效期截止日期',
+      busi_scope: '经营范围', associated_date: '建立业务关系日期', birthday: '出生年月',
+      gender: '客户性别', nationality: '客户国籍', profession_code: '职业分类', income: '年收入',
+      id_address: '证件地址', address: '联系地址', client_type: '客户类型',
+      client_type_other: '客户类型具体说明', special_matters: '特殊事项',
+      missing_information: '具体说明缺失的信息', missing_draft: '具体说明缺失的底稿',
+      special_matters_other: '特殊事项具体说明', special_reason: '特殊事项原因',
+      completed_cdd: '已开展的反洗钱尽职调查工作', low_risk_explanation: '客户洗钱风险较低的评估说明',
+      take_measures: '后续措施'
+    };
+    const msgs = [];
+    const checkFields = (fields) => fields.forEach(field => {
+      if (isEmpty(basicInfo[field])) msgs.push(`请填写“${fieldLabels[field] || field}”`);
+    });
+
+    if (basicInfo.is_special === '1') {
+      // 存在反洗钱特殊情况：关联人只校验姓名，再校验特殊情况模块和附件
+      if (isOrgan) {
+        const noName = (list) => list.length === 0 || list.some(item => !item || isEmpty(item.related_name));
+        if (noName(legalRep)) msgs.push('请填写法定代表人姓名');
+        if (noName(authorizedRep)) msgs.push('请填写授权代表人姓名');
+        if (noName(beneficialOwner)) msgs.push('请填写受益所有人姓名');
+      }
+      if (isEmpty(basicInfo.communication_records)) msgs.push('请上传“与客户沟通记录”文件');
+      if (isEmpty(basicInfo.agree_records)) msgs.push('请上传“二级部门负责人同意的记录”文件');
+
+      const clientType = splitVal(basicInfo.client_type);
+      const matters = splitVal(basicInfo.special_matters);
+      const fields = ['client_type', 'special_matters', 'special_reason', 'completed_cdd', 'low_risk_explanation', 'take_measures'];
+      if (clientType.includes('99')) fields.push('client_type_other');
+      if (matters.includes('1')) fields.push('missing_information');
+      if (matters.includes('2')) fields.push('missing_draft');
+      if (matters.includes('99')) fields.push('special_matters_other');
+      checkFields(fields);
+    } else if (isOrgan) {
+      // 机构户：基本信息全部必填，法定代表人、授权代表人、受益所有人至少一条
+      if (legalRep.length === 0) msgs.push('请添加法定代表人信息');
+      if (authorizedRep.length === 0) msgs.push('请添加授权代表人信息');
+      if (beneficialOwner.length === 0) msgs.push('请添加受益所有人信息');
+
+      const fields = ['client_name', 'office_address', 'register_country', 'register_money_type', 'register_fund',
+        'industry_type', 'tel', 'setup_date', 'id_type', 'id_no', 'id_begindate', 'id_enddate', 'busi_scope', 'associated_date'];
+      if (basicInfo.industry_type === '26') fields.push('industry_name');
+      checkFields(fields);
+
+      const validateRelatedPerson = (list, typeName) => {
+        list.forEach(item => {
+          const name = item.related_name || '';
+          if (isEmpty(item.related_name)) msgs.push(`${typeName}的姓名不能为空`);
+          if (item.is_government_dept === '1') return;
+          if (isEmpty(item.nationality)) msgs.push(`${typeName}${name}的国籍不能为空`);
+          if (isEmpty(item.id_type)) msgs.push(`${typeName}${name}的证件类型不能为空`);
+          if (isEmpty(item.id_no)) msgs.push(`${typeName}${name}的证件号码不能为空`);
+          if (isEmpty(item.id_begindate)) msgs.push(`${typeName}${name}的证件开始日期不能为空`);
+          if (isEmpty(item.id_enddate)) msgs.push(`${typeName}${name}的证件结束日期不能为空`);
+          if (item.organ_flag === '1' && item.is_government_dept !== '0' && item.is_government_dept !== '1') {
+            msgs.push(`${typeName}${name}的是否政府部门不能为空`);
+          }
+          if (item.organ_flag === '0' && isEmpty(item.birthday)) msgs.push(`${typeName}${name}的出生日期不能为空`);
+          if (item.related_type === '5') {
+            if (isEmpty(item.beneficiary)) msgs.push(`${typeName}${name}的受益所有人类型不能为空`);
+            if (isEmpty(item.address)) msgs.push(`${typeName}${name}的地址不能为空`);
+            if (['A1', 'A2', 'B1', 'D1'].includes(item.beneficiary) && isEmpty(item.shareholding_ratio)) {
+              msgs.push(`${typeName}${name}的股权/表决权比例不能为空`);
+            }
+          }
+          if ((item.related_type === '1' || item.related_type === '4') && isEmpty(item.mobno1)) {
+            msgs.push(`${typeName}${name}的联系方式不能为空`);
+          }
+        });
+      };
+      validateRelatedPerson(legalRep, '法定代表人');
+      validateRelatedPerson(controllingShareholder, '控股股东');
+      validateRelatedPerson(actualController, '实际控制人');
+      validateRelatedPerson(authorizedRep, '授权代表人');
+      validateRelatedPerson(beneficialOwner, '受益所有人');
+    } else {
+      // 自然人
+      checkFields(['client_name', 'birthday', 'id_address', 'address', 'nationality', 'gender', 'income',
+        'profession_code', 'id_type', 'id_no', 'id_begindate', 'id_enddate', 'associated_date']);
+    }
+
+    if (msgs.length > 0) {
+      Modal.warning({
+        title: '客户信息不完整，请补充并提交后再导出PDF',
+        width: 560,
+        content: (
+          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+            {msgs.map((msg, index) => <div key={index}>{msg}</div>)}
+          </div>
+        )
+      });
+      return false;
+    }
+    return true;
+  }
+
   // PDF导出
   handleExportPDF = async () => {
     const { clientId } = this.state;
@@ -599,7 +713,8 @@ class CustomForm extends React.Component {
             agree_records: raw.agreeRecords || '',
             other_records: raw.otherRecords || '',
             associated_date: raw.associatedDate || '',
-            remark: raw.remark || ''
+            remark: raw.remark || '',
+            update_time: raw.updateTime || ''
           };
         }
 
@@ -656,6 +771,8 @@ class CustomForm extends React.Component {
         console.warn('导出前刷新数据失败，使用现有数据导出:', e);
       }
     }
+
+    if (this.state.curNode?.nodeCode === 'fxqkhdy' && !this.validateBeforeExport()) return;
 
     if (!this.pdfRef.current) {
       message.error('PDF内容未就绪');
@@ -726,7 +843,7 @@ class CustomForm extends React.Component {
           }
         }
       }
-        const fileName = `客户基本信息表-【${basicInfo?.client_name || ''}(${clientId || ''})】.pdf`;
+        const fileName = `客户基本信息表-【${this.state.basicInfo?.client_name || ''}(${clientId || ''})】.pdf`;
         pdf.save(fileName);
         message.success('导出成功');
     } catch (error) {
@@ -1482,6 +1599,9 @@ class CustomForm extends React.Component {
                 <TabPane tab="审核记录" key="approval" />
               )}
             </Tabs>
+            <span style={{ marginRight: 12, color: '#606266', whiteSpace: 'nowrap' }}>
+              最新更新日期：{formatUpdateTime(basicInfo?.update_time)}
+            </span>
             <Button onClick={this.handleExportPDF}>
               导出PDF
             </Button>

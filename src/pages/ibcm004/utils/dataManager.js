@@ -235,7 +235,8 @@ class DataManager {
 
           // 业务关系信息
           associated_date: basicInfoData.associatedDate || '',
-          remark: basicInfoData.remark || ''
+          remark: basicInfoData.remark || '',
+          update_time: basicInfoData.updateTime || ''
         };
 
         this.cache.basicInfo = formattedBasicInfo;

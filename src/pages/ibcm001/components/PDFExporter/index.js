@@ -137,6 +137,8 @@ const formatDictMap = (dictData, dictType, key) => {
   return item ? item.v : '-';
 };
 
+const formatUpdateTime = (val) => (val ? String(val).replace(/\.\d+$/, '') : '-');
+
 // ============ 组件 ============
 const PDFContent = React.forwardRef((props, ref) => {
   const {
@@ -470,6 +472,9 @@ const PDFContent = React.forwardRef((props, ref) => {
       }}
     >
       <h2 className="pdf-section-title">客户基本信息</h2>
+      <div style={{ textAlign: 'right', fontSize: '20px', color: '#606266', marginBottom: '10px' }}>
+        最新更新日期：{formatUpdateTime(basicInfo.update_time)}
+      </div>
 
       {isOrganization ? renderOrganizationInfo() : renderPersonalInfo()}
 
@@ -507,6 +512,8 @@ const PDFContent = React.forwardRef((props, ref) => {
         <div className="pdf-table-row">
           <div className="pdf-cell-label pdf-col-3">建立业务关系日期</div>
           <div className="pdf-cell-value pdf-col-5">{basicInfo.associated_date || '-'}</div>
+          <div className="pdf-cell-label pdf-col-3">最新更新日期</div>
+          <div className="pdf-cell-value pdf-col-13">{formatUpdateTime(basicInfo.update_time)}</div>
         </div>
       </div>
     </div>
