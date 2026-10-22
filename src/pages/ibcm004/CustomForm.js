@@ -537,10 +537,126 @@ class CustomForm extends React.Component {
       // 失败时不更新状态
     }
   }
-
   // PDF导出
   handleExportPDF = async () => {
-    const { basicInfo, clientId } = this.state;
+    const { clientId } = this.state;
+
+    // 导出前直接调用后端接口强制刷新数据（绕过dataManager缓存）
+    // 确保PDF使用后端最新保存的数据
+    if (clientId) {
+      try {
+        // 1. 直接调用 selectBasicInfo 获取最新基本信息
+        const basicResp = await request001.selectBasicInfo({ clientId });
+        let newBasicInfo = null;
+        if (basicResp.success && basicResp.data) {
+          const raw = JSON.parse(basicResp.data)[0];
+          newBasicInfo = {
+            client_id: raw.clientId || '',
+            client_name: raw.clientName || '',
+            client_status: raw.clientStatus || '0',
+            organ_flag: raw.organFlag || '0',
+            office_address: raw.officeAddress || '',
+            register_country: raw.registerCountry || '',
+            register_money_type: raw.registerMoneyType || '',
+            register_fund: raw.registerFund || '',
+            industry_type: raw.industryType || '',
+            industry_name: raw.industryName || '',
+            tel: raw.tel || '',
+            setup_date: raw.setupDate || '',
+            id_type: raw.idType || '',
+            id_no: raw.idNo || '',
+            id_begindate: raw.idBegindate || '',
+            id_enddate: raw.idEnddate || '',
+            busi_scope: raw.busiScope || '',
+            province: raw.province || '',
+            city: raw.city || '',
+            district: raw.district || '',
+            nationality: raw.nationality || '00CN',
+            gender: raw.gender || '',
+            birthday: raw.birthday || '',
+            profession_code: raw.professionCode || '',
+            income: raw.income || '',
+            province1: raw.province1 || '',
+            city1: raw.city1 || '',
+            district1: raw.district1 || '',
+            id_address: raw.idAddress || '',
+            province2: raw.province2 || '',
+            city2: raw.city2 || '',
+            district2: raw.district2 || '',
+            address: raw.address || '',
+            is_special: raw.isSpecial || '0',
+            client_type: raw.clientType || '',
+            client_type_other: raw.clientTypeOther || '',
+            special_matters: raw.specialMatters || '',
+            missing_information: raw.missingInformation || '',
+            missing_draft: raw.missingDraft || '',
+            special_matters_other: raw.specialMattersOther || '',
+            special_reason: raw.specialReason || '',
+            completed_cdd: raw.completedCdd || '',
+            low_risk_explanation: raw.lowRiskExplanation || '',
+            take_measures: raw.takeMeasures || '',
+            communication_records: raw.communicationRecords || '',
+            agree_records: raw.agreeRecords || '',
+            other_records: raw.otherRecords || '',
+            associated_date: raw.associatedDate || '',
+            remark: raw.remark || ''
+          };
+        }
+
+        // 2. 直接调用 selectRelatedInfo 获取最新关联人信息（5种类型）
+        const relaTypes = ['1', '2', '3', '4', '5'];
+        const typeKeys = ['legalRep', 'controllingShareholder', 'actualController', 'authorizedRep', 'beneficialOwner'];
+        const relatedRespList = await Promise.all(
+          relaTypes.map(t => request001.selectRelatedInfo({ clientId, relatedType: t, dataType: '1' }))
+        );
+        const newRelatedInfo = {};
+        relaTypes.forEach((t, i) => {
+          const resp = relatedRespList[i];
+          if (resp.success && resp.data) {
+            const rawList = JSON.parse(resp.data);
+            newRelatedInfo[typeKeys[i]] = rawList.map(item => ({
+              address: item.address,
+              mobno1: item.mobno1,
+              beneficiary: item.beneficiary,
+              birthday: item.birthday,
+              client_id: item.clientId,
+              create_time: item.createTime,
+              create_user: item.createUser,
+              id_begindate: item.idBegindate,
+              id_enddate: item.idEnddate,
+              id_no: item.idNo,
+              id_type: item.idType,
+              is_government_dept: item.isGovernmentDept,
+              nationality: item.nationality,
+              object_id: item.objectId,
+              organ_flag: item.organFlag,
+              related_id: item.relatedId,
+              related_name: item.relatedName,
+              related_type: item.relatedType,
+              shareholding_ratio: item.shareholdingRatio,
+              update_time: item.updateTime,
+              update_user: item.updateUser,
+              data_status: item.dataStatus
+            }));
+          } else {
+            newRelatedInfo[typeKeys[i]] = [];
+          }
+        });
+
+        // 3. 更新state并等待React渲染PDFExporter
+        const updates = {};
+        if (newBasicInfo) updates.basicInfo = newBasicInfo;
+        if (Object.keys(newRelatedInfo).length > 0) updates.relatedInfo = newRelatedInfo;
+        if (Object.keys(updates).length > 0) {
+          this.setState(updates);
+          await new Promise(resolve => requestAnimationFrame(() => resolve()));
+          await new Promise(resolve => requestAnimationFrame(() => resolve()));
+        }
+      } catch (e) {
+        console.warn('导出前刷新数据失败，使用现有数据导出:', e);
+      }
+    }
+
     if (!this.pdfRef.current) {
       message.error('PDF内容未就绪');
       return;
@@ -619,7 +735,7 @@ class CustomForm extends React.Component {
     } finally {
       if (iframe.parentNode) document.body.removeChild(iframe);
     }
-  }
+  };
 
   // 编辑功能
   handleEdit = () => {
