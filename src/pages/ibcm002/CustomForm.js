@@ -374,9 +374,11 @@ class CustomForm extends React.Component {
     // 其余节点使用带state=info的URL
     const nodeCode = curNode?.nodeCode;
     const isXmfzrzc = nodeCode === 'xmfzrzc';
+    // 当前登录用户工号，透传给thhg系统
+    const usercode = store.getModelState('user')?.username || '';
     const selfCheckUrl = (isXmfzrzc && curNode?.personType === '1')
-      ? `http://10.181.135.22:8080/thhg/projlistformTab?projid=${projId}&piid1=${piid}&checkBatchId=${checkBatchId}&staff_id=${staffId}&deptmananame=${deptmananame}`
-      : `http://10.181.135.22:8080/thhg/projlistformTab?projid=${projId}&state=info`;
+      ? `http://10.181.135.22:8080/thhg/beforeProjlistformTab?projid=${projId}&piid1=${piid}&checkBatchId=${checkBatchId}&staff_id=${staffId}&deptmananame=${deptmananame}&usercode=${usercode}`
+      : `http://10.181.135.22:8080/thhg/beforeProjlistformTab?projid=${projId}&state=info&usercode=${usercode}`;
 
     if (loading) {
       return <div style={{ textAlign: 'center', padding: '50px' }}>加载中...</div>;

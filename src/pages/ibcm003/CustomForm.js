@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Form from '@/components/IbFlowForm';
-import { Input, Row, Col, Card, Tooltip, Button, message } from 'antd';
+import { Input, Row, Col, Card, Tooltip, Button, message, Modal } from 'antd';
 import { request } from 'ice';
 import store from '@/store';
 
 import moment from 'moment';
 
 import request003 from './services';
-import { previewInWindow } from '@/hooks/useFilePreviewWindow';
 import flowServices from '../../components/sdkGtjaLinkWeb/services/flow';
 import styles from './CustomForm.module.less';
 
@@ -27,6 +26,8 @@ class CustomForm extends React.Component {
       staffId: '',
       deptmananame: '',
       pkId: '',
+      previewVisible: false,
+      previewUrl: '',
     }
   }
 
@@ -122,7 +123,7 @@ class CustomForm extends React.Component {
     }
   };
 
-  // 预览附件（在独立的浏览器窗口打开）
+  // 预览附件
   handlePreview = async (file) => {
     const filepath = file.filepath;
     if (!filepath) {
@@ -131,26 +132,38 @@ class CustomForm extends React.Component {
     }
     const hideLoading = message.loading('正在加载预览...', 0);
     try {
-      await previewInWindow(async () => {
-        const result = await request003.previewInoutCommentFile(filepath);
-        if (result && result.success && result.data) {
-          const url = result.data.previewUrl || result.data.url || result.data;
-          return url || null;
-        }
-        return null;
-      }, {
-        unsupportedMessage: '当前文件类型不支持预览',
-        errorMessage: '预览失败',
-      });
-    } finally {
+      const result = await request003.previewInoutCommentFile(filepath);
       hideLoading();
+      if (result && result.success && result.data) {
+        const previewUrl = result.data.previewUrl || result.data.url || result.data;
+        if (previewUrl) {
+          this.setState({ previewUrl, previewVisible: true });
+        } else {
+          message.error('未获取到预览地址');
+        }
+      } else {
+        message.error('当前文件类型不支持预览');
+      }
+    } catch (error) {
+      hideLoading();
+      message.error(`预览失败: ${error.message || '未知错误'}`);
     }
   };
 
-    render() {
+  handlePreviewCancel = () => {
+    if (this.state.previewUrl && this.state.previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.state.previewUrl);
+    }
+    this.setState({ previewVisible: false, previewUrl: '' });
+  };
+
+  render() {
     const { form } = this.props;
-    const { curNode, piid, projId, projInfo, loading, staffId, deptmananame } = this.state;
+    const { curNode, piid, projId, projInfo, loading, staffId, deptmananame, previewVisible, previewUrl } = this.state;
     const nodeCode = curNode?.nodeCode;
+
+    // 当前登录用户工号，透传给thhg系统
+    const usercode = store.getModelState('user')?.username || '';
 
     // 判断当前节点类型
     const isHgrysh = nodeCode === 'hgrysh'; // 合规人员审核
@@ -418,10 +431,10 @@ class CustomForm extends React.Component {
             <span>
               <a
                 href={(isHgrysh && curNode?.personType === '1')
-                  ? `http://10.181.135.22:8080/thhg/projlistformTab?projid=${projId}&piid2=${piid}&staff_id=${staffId}&deptmananame=${deptmananame}&nodeCode=hgrysh`
+                  ? `http://10.181.135.22:8080/thhg/beforeProjlistformTab?projid=${projId}&piid2=${piid}&staff_id=${staffId}&deptmananame=${deptmananame}&nodeCode=hgrysh&usercode=${usercode}`
                   : isXmfzryz
-                    ? `http://10.181.135.22:8080/thhg/projlistformTab?projid=${projId}&piid2=${piid}&state=info&staff_id=${staffId}&deptmananame=${deptmananame}`
-                    : `http://10.181.135.22:8080/thhg/projlistformTab?projid=${projId}&state=info`
+                    ? `http://10.181.135.22:8080/thhg/beforeProjlistformTab?projid=${projId}&piid2=${piid}&state=info&staff_id=${staffId}&deptmananame=${deptmananame}&usercode=${usercode}`
+                    : `http://10.181.135.22:8080/thhg/beforeProjlistformTab?projid=${projId}&state=info&usercode=${usercode}`
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -433,7 +446,29 @@ class CustomForm extends React.Component {
           </div>
         </div>
 
-</div>
+        <Modal
+          title="文件预览"
+          visible={previewVisible}
+          onCancel={this.handlePreviewCancel}
+          footer={null}
+          width="80%"
+          style={{ top: 20 }}
+          bodyStyle={{ height: '75vh', overflow: 'auto' }}
+          destroyOnClose
+        >
+          {previewUrl ? (
+            <iframe
+              src={previewUrl}
+              style={{ width: '100%', height: '100%', border: 'none', minHeight: '70vh' }}
+              title="文件预览"
+            />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '50px', color: '#999' }}>
+              暂无预览内容
+            </div>
+          )}
+        </Modal>
+      </div>
     );
   }
 }
