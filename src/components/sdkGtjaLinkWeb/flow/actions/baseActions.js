@@ -2587,7 +2587,7 @@ const baseActions = {
 
             const { tableData, remark, clientId } = reviewRecordData;
 
-            // 检查是否有新录入的审核问题
+            // 检查是否有审核问题行（空行需用户手动点击"移除"删除后，才视为不录入审核问题）
             const hasReviewData = tableData.length > 0;
 
             if (!hasReviewData) {
@@ -2775,23 +2775,28 @@ const baseActions = {
                         return result;
                     }
 
-                    if (!tableData || tableData.length === 0) {
-                        return result;
-                    }
+                    // 是否存在审核明细行（空行需用户手动点击"移除"删除，以此表示无需填写审核问题）
+                    const hasDetailRows = Array.isArray(tableData) && tableData.length > 0;
 
-                    const errors = [];
-                    tableData.forEach((row, index) => {
-                        if (!row.errorType) {
-                            errors.push(`请选择第${index + 1}行的错误类型`);
-                        }
-                        if (!row.problemDesc) {
-                            errors.push(`请填写第${index + 1}行的问题描述`);
-                        }
-                    });
+                    if (hasDetailRows) {
+                        // 有明细行时逐行严格校验：错误类型和问题描述必填，任一行不完整则整批数据（含备注）都不保存
+                        const errors = [];
+                        tableData.forEach((row, index) => {
+                            if (!row.errorType) {
+                                errors.push(`请选择第${index + 1}行的错误类型`);
+                            }
+                            if (!row.problemDesc) {
+                                errors.push(`请填写第${index + 1}行的问题描述`);
+                            }
+                        });
 
-                    if (errors.length > 0) {
-                        console.warn("审核数据验证失败，跳过保存:", errors);
-                        message.error('审核数据不完整，跳过保存: ' + errors.join('; '));
+                        if (errors.length > 0) {
+                            console.warn("审核数据验证失败，跳过保存:", errors);
+                            message.error(errors.join('\n'));
+                            return result;
+                        }
+                    } else if (!(remark || '').trim()) {
+                        // 无明细行（用户已手动删除空行）且备注也为空：未录入任何审核内容，跳过保存
                         return result;
                     }
 
@@ -2799,6 +2804,7 @@ const baseActions = {
                     const userInfo = store.getModelState('user');
 
                     // 1. 先保存审核列表 - 根据接口文档saveApprList接口
+                    // 手动删除全部明细行后仅填写备注时，也要创建批次，否则批次/备注会丢失
                     const apprListParams = {
                         clientId: clientId,
                         auditId: auditId,
@@ -2817,45 +2823,50 @@ const baseActions = {
 
                     if (apprListResult && apprListResult.success) {
 
-                        // 2. 批量保存审核详情 - 根据接口文档，参数应为小驼峰格式
-                        const batchList = tableData.map((item, index) => {
-                            let auditDescValue = item.errorType || '';
-
-                            if (window.errorTypeOptions && Array.isArray(window.errorTypeOptions)) {
-                                const errorTypeOption = window.errorTypeOptions.find(opt => opt.errType === item.errorType);
-                                if (errorTypeOption) {
-                                    auditDescValue = errorTypeOption.errDesc || item.errorType;
-                                }
-                            }
-
-                            return {
-                                clientId: clientId,
-                                auditId: auditId,
-                                auditSeq: (index + 1).toString(),
-                                auditDesc: auditDescValue,
-                                disposeDesc: item.problemDesc || ''
-                            };
-                        });
-
-                        const apprDetailsParams = {
-                            batchList: batchList,
-                            createUser: userInfo.userId
-                        };
-
-                        const apprDetailsResult = await request({
-                            url: '/thfxq/saveApprDetails',
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            data: apprDetailsParams
-                        });
-
-                        if (apprDetailsResult && apprDetailsResult.success) {
-                            message.success('审核数据保存成功');
+                        if (!hasDetailRows) {
+                            // 用户手动删除了全部明细行，仅保存了批次和备注
+                            message.success('审核备注保存成功');
                         } else {
-                            console.warn("saveApprDetails接口调用失败:", apprDetailsResult);
-                            message.warn('审核详情保存失败，但流程已提交成功');
+                            // 2. 批量保存审核详情 - 根据接口文档，参数应为小驼峰格式
+                            const batchList = tableData.map((item, index) => {
+                                let auditDescValue = item.errorType || '';
+
+                                if (window.errorTypeOptions && Array.isArray(window.errorTypeOptions)) {
+                                    const errorTypeOption = window.errorTypeOptions.find(opt => opt.errType === item.errorType);
+                                    if (errorTypeOption) {
+                                        auditDescValue = errorTypeOption.errDesc || item.errorType;
+                                    }
+                                }
+
+                                return {
+                                    clientId: clientId,
+                                    auditId: auditId,
+                                    auditSeq: (index + 1).toString(),
+                                    auditDesc: auditDescValue,
+                                    disposeDesc: item.problemDesc || ''
+                                };
+                            });
+
+                            const apprDetailsParams = {
+                                batchList: batchList,
+                                createUser: userInfo.userId
+                            };
+
+                            const apprDetailsResult = await request({
+                                url: '/thfxq/saveApprDetails',
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                data: apprDetailsParams
+                            });
+
+                            if (apprDetailsResult && apprDetailsResult.success) {
+                                message.success('审核数据保存成功');
+                            } else {
+                                console.warn("saveApprDetails接口调用失败:", apprDetailsResult);
+                                message.warn('审核详情保存失败，但流程已提交成功');
+                            }
                         }
                     } else {
                         console.warn("saveApprList接口调用失败:", apprListResult);

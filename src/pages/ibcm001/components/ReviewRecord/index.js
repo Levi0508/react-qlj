@@ -465,7 +465,11 @@ function ReviewRecord({ clientId = '', curNode = {}, editable = false, organFlag
   // 设置历史数据
   const loadHistoryData = (batchData, isReadMode = false, isInitialLoad = false) => {
     const historyItems = Array.isArray(batchData) ? batchData : [batchData];
-    setHistoryData(historyItems.map((item, index) => ({
+    // 无审核明细时，接口会返回仅包含批次信息的占位行，这里过滤掉，只保留真正的明细行
+    const detailItems = historyItems.filter(item =>
+      item && (item.auditDesc || item.disposeDesc || item.createUser || item.createTime)
+    );
+    setHistoryData(detailItems.map((item, index) => ({
       key: String(index + 1),
       disposeDesc: item.disposeDesc || '',
       auditDesc: item.auditDesc || '',
@@ -475,7 +479,7 @@ function ReviewRecord({ clientId = '', curNode = {}, editable = false, organFlag
 
     // xmzqr节点：只在初次加载时更新上方表格数据
     if (isReadMode && historyItems.length > 0 && isInitialLoad) {
-      const tableDataItems = historyItems.map((item, index) => ({
+      const tableDataItems = detailItems.map((item, index) => ({
         key: String(Date.now() + index),
         errorType: item.auditDesc || '',
         problemDesc: item.disposeDesc || ''
