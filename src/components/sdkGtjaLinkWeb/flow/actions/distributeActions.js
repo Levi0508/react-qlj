@@ -10,7 +10,7 @@ const actions = {
     async clickDistribute({ payload }, { getState, setState, dispatch }) {
         const checkMsg = await dispatch('checkBeforeSubmit');
         if (typeof checkMsg === 'string') {
-            message.warn(checkMsg);
+            if (checkMsg) message.warn(checkMsg);
             return;
         }
 

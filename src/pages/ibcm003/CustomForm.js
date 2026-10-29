@@ -91,6 +91,17 @@ class CustomForm extends React.Component {
   }
 
   handleBeforeSubmitForm = async (formData) => {
+    const nodeCode = this.state.curNode?.nodeCode;
+    // 合规人员审核不在本页提交，需先到清单详情里操作
+    if (nodeCode === 'hgrysh') {
+      Modal.warning({
+        title: '提示',
+        content: '请点击页面上的“点击此处”进入清单详情，进行操作后再提交',
+        okText: '我知道了',
+      });
+      // 空消息只用来中断提交。带上文案的话，引擎会再弹一次「表单提交失败」
+      throw new Error('');
+    }
     return { ...formData };
   }
 
