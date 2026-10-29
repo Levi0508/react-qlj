@@ -2005,6 +2005,12 @@ public class ThfxqServiceImpl implements ThfxqService {
     }
 
     @Override
+    public String selectCheckResultFlag(String piid) {
+        String flag = thfxqMapper.selectCheckResultFlag(piid);
+        return flag == null ? null : flag.trim();
+    }
+
+    @Override
     public List<TProjSelfcheckFile> selectSelfCheckFile(String checkBatchId) {
         return thfxqMapper.selectSelfCheckFile(checkBatchId);
     }

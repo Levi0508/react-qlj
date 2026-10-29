@@ -532,6 +532,14 @@ public interface ThfxqMapper {
             )
     List<ProjInfo> selectProjInfo(@Param("projId") String projId, @Param("piid") String piid, @Param("batchId") String batchId);
 
+    /**
+     * 按流程实例查询隔离墙操作变动的审核结果标识
+     * @param piid 流程实例ID，对应 T_PROJ_CHANGE_FLOW.sys_piid
+     * @return check_result_flag，0-全部准确，1-至少有一条不准确；未审核时为空
+     */
+    @Select("select check_result_flag from thjs.T_PROJ_CHANGE_FLOW where sys_piid = #{piid, jdbcType=VARCHAR} and rownum = 1")
+    String selectCheckResultFlag(@Param("piid") String piid);
+
     @Select("SELECT t.create_user, " +
             "       t.create_time, " +
             "       t.filepath, " +

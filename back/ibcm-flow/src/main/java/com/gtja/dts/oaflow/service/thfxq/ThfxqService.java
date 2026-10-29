@@ -261,6 +261,13 @@ public interface ThfxqService {
     List<ProjInfo> selectProjInfo(String projId, String piid, String batchId, String pkId);
 
     /**
+     * 按流程实例查询隔离墙操作变动的审核结果标识
+     * @param piid 流程实例ID
+     * @return check_result_flag，未审核时为空
+     */
+    String selectCheckResultFlag(String piid);
+
+    /**
      * 根据清单自查批次号查询附件列表
      * @param checkBatchId 清单自查批次号
      * @return 附件列表

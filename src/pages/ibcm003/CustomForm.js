@@ -90,17 +90,53 @@ class CustomForm extends React.Component {
     // 实现逻辑
   }
 
+  // 解析 check_result_flag。接口和 selectContent 一样会把值再包一层 JSON 字符串
+  parseCheckResultFlag = (data) => {
+    if (data === null || data === undefined) return '';
+    let flag = data;
+    if (typeof flag === 'string') {
+      const trimmed = flag.trim();
+      if (trimmed === '' || trimmed === 'null') return '';
+      if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        try {
+          flag = JSON.parse(trimmed);
+        } catch (e) {
+          flag = trimmed.substring(1, trimmed.length - 1);
+        }
+      } else {
+        flag = trimmed;
+      }
+    }
+    if (flag === null || flag === undefined) return '';
+    return String(flag).trim();
+  }
+
   handleBeforeSubmitForm = async (formData) => {
     const nodeCode = this.state.curNode?.nodeCode;
-    // 合规人员审核不在本页提交，需先到清单详情里操作
+    // 合规人员审核需先在清单详情里完成审核，check_result_flag 为空表示未审核
     if (nodeCode === 'hgrysh') {
-      Modal.warning({
-        title: '提示',
-        content: '请点击页面上的“点击此处”进入清单详情，进行操作后再提交',
-        okText: '我知道了',
-      });
-      // 空消息只用来中断提交。带上文案的话，引擎会再弹一次「表单提交失败」
-      throw new Error('');
+      const piid = this.state.piid || formData.SYS_PIID;
+      let reviewed = false;
+      try {
+        const result = await request003.selectCheckResultFlag({ piid });
+        if (result && result.success) {
+          const flag = this.parseCheckResultFlag(result.data);
+          reviewed = flag === '0' || flag === '1';
+        } else {
+          console.warn('selectCheckResultFlag接口返回数据格式不正确:', result);
+        }
+      } catch (error) {
+        console.error('查询审核结果标识失败:', error);
+      }
+      if (!reviewed) {
+        Modal.warning({
+          title: '提示',
+          content: '请点击页面上的“点击此处”进入清单详情，进行操作后再提交',
+          okText: '我知道了',
+        });
+        // 空消息只用来中断提交。带上文案的话，引擎会再弹一次「表单提交失败」
+        throw new Error('');
+      }
     }
     return { ...formData };
   }
