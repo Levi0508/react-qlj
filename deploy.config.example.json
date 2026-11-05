@@ -5,5 +5,5 @@
   "password": "******",
   "insecure": false,
   "distDir": "build",
-  "uploadPath": "/data/app/ibcm_front/ibcm-flow-ui"
+  "uploadTo": "ibcm-flow-ui"
 }

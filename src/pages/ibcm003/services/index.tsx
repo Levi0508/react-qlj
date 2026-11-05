@@ -11,15 +11,14 @@ import store from '@/store';
 
 
 export default {
-
-  // 隔离墙操作变动审核结果标识，对应 T_PROJ_CHANGE_FLOW.check_result_flag
-  async selectCheckResultFlag(data) {
-    return await request({
-      url: 'thfxq/selectCheckResultFlag',
-      method: 'GET',
-      params: data
-    });
-  },
+    // 隔离墙操作变动审核结果标识，对应 T_PROJ_CHANGE_FLOW.check_result_flag
+  // async selectCheckResultFlag(data) {
+  //   return await request({
+  //     url: 'thfxq/selectCheckResultFlag',
+  //     method: 'GET',
+  //     params: data
+  //   });
+  // },
 
   // 清单下发内容查询
   async selectProjInfo(data) {
