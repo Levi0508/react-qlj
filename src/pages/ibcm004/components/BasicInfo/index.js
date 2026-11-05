@@ -25,7 +25,7 @@ const ResizeableTitle = (props) => {
     );
 };
 
-function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, attachmentUpdateTime = 0, isSpecial = '0', curNode = {} }) {
+function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable = false, form, attachmentUpdateTime = 0, isSpecial = '0', curNode = {} }) {
     // 格式化数据字典显示
     const formatDictMap = (dictType, key) => {
         const dict = dictData[dictType] || [];
@@ -150,7 +150,6 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
     };
 
     const isOrganization = basicInfo.organ_flag === '1';
-    const [attachmentList, setAttachmentList] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // 省市区相关状态
@@ -571,10 +570,10 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
         },
         {
             title: '上传人',
-            dataIndex: 'create_by',
+            dataIndex: 'createBy',
             key: 'create_by',
             width: attachmentColumnWidths.create_by,
-            sorter: (a, b) => (a.create_by || '').localeCompare(b.create_by || ''),
+            sorter: (a, b) => (a.createBy || '').localeCompare(b.createBy || ''),
             render: (text) => text || '-',
             onHeaderCell: (column) => ({
                 width: column.width,
@@ -583,10 +582,10 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
         },
         {
             title: '上传时间',
-            dataIndex: 'create_time',
+            dataIndex: 'createTime',
             key: 'create_time',
             width: attachmentColumnWidths.create_time,
-            sorter: (a, b) => (a.create_time || '').localeCompare(b.create_time || ''),
+            sorter: (a, b) => (a.createTime || '').localeCompare(b.createTime || ''),
             render: (text) => text || '-',
             onHeaderCell: (column) => ({
                 width: column.width,
@@ -1318,7 +1317,7 @@ function BasicInfo({ basicInfo, dictData, clientId, editable = false, form, atta
                     className="basic-info-attachment-table"
                     columns={attachmentColumns}
                     components={attachmentTableComponents}
-                    dataSource={attachmentList}
+                    dataSource={attachments}
                     rowKey="id"
                     pagination={false}
                     size="middle"

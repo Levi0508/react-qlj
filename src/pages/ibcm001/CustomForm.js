@@ -1670,6 +1670,7 @@ class CustomForm extends React.Component {
                       <div id="basicInfo" style={{ scrollMarginTop: `${navTop + 10}px` }}>
                         <BasicInfo
                           basicInfo={basicInfo}
+                          attachments={attachments.basicInfo || []}
                           dictData={dictData}
                           clientId={clientId}
                           editable={formEditable}
@@ -1965,6 +1966,7 @@ class CustomForm extends React.Component {
                     <div id="basicInfo" style={{ scrollMarginTop: `${navTop + 10}px` }}>
                       <BasicInfo
                         basicInfo={basicInfo}
+                        attachments={attachments.basicInfo || []}
                         dictData={dictData}
                         clientId={clientId}
                         editable={formEditable}
