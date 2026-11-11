@@ -89,26 +89,9 @@ class DataManager {
    * @returns {Promise<Object>} 所有字典数据
    */
   async loadAllDictData() {
-    if (this.cache.allDictData) return this.cache.allDictData;
-    // 检查是否已经缓存了字典数据
-    if (Object.keys(this.cache.dictData).length > 0) {
-      const dictData = {};
-      Object.keys(this.cache.dictData).forEach(key => {
-        if (key.startsWith('dict_')) {
-          const cacheData = this.cache.dictData[key];
-          // 从缓存键中提取字典类型
-          const dictType = key.replace('dict_', '');
-          dictData[`${dictType}_list`] = cacheData;
-        } else if (key.startsWith('select_')) {
-          const cacheData = this.cache.selectList[key];
-          // 从缓存键中提取字典类型
-          const dictType = key.replace('select_', '');
-          dictData[`${dictType}_list`] = cacheData;
-        }
-      });
-      return dictData;
-    }
-
+    // 检查是否已经缓存了字典数据：由下面的逐项加载处理，缺失字典继续请求。
+    // 字典缓存以 entryNo 为键，页面字段须按配置中的 bindData 组装。
+    // 键值字典使用独立的 selectList 缓存，不能仅从 dictData 恢复。
     const dictConfigs = [
       { entryNo: '1040', bindData: 'nationality' }, // 国籍
       { entryNo: 'PROFESSION_CODE', bindData: 'profession_code' }, // 职业分类
@@ -161,7 +144,6 @@ class DataManager {
       results.forEach(result => {
         dictData[`${result.bindData}_list`] = result.data;
       });
-      this.cache.allDictData = dictData;
       return dictData;
     } catch (error) {
       console.error('批量获取字典数据失败:', error);

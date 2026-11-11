@@ -12,6 +12,22 @@ import {
 import styles from './index.module.less';
 
 const { Option } = Select;
+const formGroups = [
+  ['bnf_type'],
+  ['acthdrat', 'shareratiostartdate', 'shareratioenddate'],
+  ['actownerprofitratio', 'profitratiostartdate', 'profitratioenddate'],
+  ['actownerprofitratiovote', 'profitratiovotestartdate', 'profitratiovoteenddate'],
+  ['actctrltype'],
+  ['actotherforms'],
+  ['obtainactdate', 'terminationactdate', 'actconuppermarket', 'actconupperentname', 'actconuniscid'],
+  ['seniormgrpos', 'actdailymgmtpostother'],
+  ['seniormgrposcn', 'ownerrightmgmtpostother'],
+  ['related_name', 'id_type', 'id_no'],
+  ['id_validity', 'gender', 'nationality'],
+  ['birthday', 'mobno1', 'mobno2'],
+  ['address']
+];
+const formSpans = { bnf_type: 24, actctrltype: 24, actotherforms: 24, seniormgrpos: 16, seniormgrposcn: 16 };
 const loadRows = response => {
   if (!response || !response.success) throw new Error((response && response.message) || '受益人查询失败');
   const rows = typeof response.data === 'string' ? JSON.parse(response.data || '[]') : (response.data || []);
@@ -155,17 +171,19 @@ function BeneficialOwner(props) {
   const renderControl = field => {
     const value = draft[field.key];
     if (field.type === 'date') return <div>
-      <DatePicker value={value ? moment(value, 'YYYY-MM-DD') : null} format="YYYY-MM-DD"
+      <DatePicker size="small" value={value ? moment(value, 'YYYY-MM-DD') : null} format="YYYY-MM-DD"
+        placeholder={field.key === 'id_begindate' ? '开始日期' : (field.key === 'id_enddate' ? '结束日期' : '请选择日期')}
         onChange={(_, text) => changeField(field, text)} style={{ width: '100%' }} />
       {field.key === 'id_enddate' && <Button type="link" size="small"
         onClick={() => changeField(field, '2100-12-31')}>长期</Button>}
     </div>;
-    if (field.type === 'ratio') return <InputNumber min={25} max={100} step={1} precision={2}
+    if (field.type === 'ratio') return <InputNumber size="small" min={25} max={100} step={1} precision={2}
       value={value === '' ? undefined : value} onChange={number => changeField(field, number)} style={{ width: '100%' }} />;
     if (field.type === 'select' || field.type === 'multi') {
       let list = dictData[field.dict] || [];
       if (field.key === 'bnf_type') list = list.filter(item => String(item.k).startsWith('N' + String((base || {}).company_type || '').charAt(0)));
-      return <Select value={value === '' || value == null ? undefined : value} allowClear showSearch
+      return <Select size="small" value={value === '' || value == null ? undefined : value} allowClear showSearch
+        dropdownClassName={styles.optionDropdown}
         mode={field.type === 'multi' ? 'multiple' : undefined} optionFilterProp="children"
         disabled={field.readOnly} style={{ width: '100%' }} placeholder="请选择" onChange={selected => changeField(field, selected || (field.type === 'multi' ? [] : ''))}>
         {list.map(item => <Option key={String(item.k)} value={String(item.k)}
@@ -175,8 +193,23 @@ function BeneficialOwner(props) {
         </Option>)}
       </Select>;
     }
-    if (field.type === 'textarea') return <Input.TextArea rows={2} value={value || ''} onChange={event => changeField(field, event.target.value)} />;
-    return <Input value={value || ''} onChange={event => changeField(field, event.target.value)} />;
+    if (field.type === 'textarea') return <Input.TextArea rows={2} placeholder="请输入" value={value || ''} onChange={event => changeField(field, event.target.value)} />;
+    return <Input size="small" placeholder="请输入" value={value || ''} onChange={event => changeField(field, event.target.value)} />;
+  };
+
+  const formFields = benefitFields(draft, special, base || {}).reduce((result, field) => {
+    result[field.key] = field;
+    return result;
+  }, {});
+  const renderFormItem = (field, showLabel = true) => {
+    const label = {
+      mobno1: '联系方式（手机，与固话二选一，只能填一项）',
+      mobno2: '联系方式（固话，与手机二选一，只能填一项）'
+    }[field.key] || field.label;
+    return <Form.Item label={showLabel ? label : undefined} required={field.required}
+      validateStatus={errors[field.key] ? 'error' : undefined} help={errors[field.key]}>
+      {renderControl(field)}
+    </Form.Item>;
   };
 
   const columns = [
@@ -260,7 +293,8 @@ function BeneficialOwner(props) {
       </Form>
     </Modal>
 
-    <Modal title={mode === 'add' ? '新增受益所有人' : '修改受益所有人'} visible={visible} width="90%"
+    <Modal title={mode === 'add' ? '新增受益所有人' : '修改受益所有人'} visible={visible} width="80%"
+      className={styles.benefitDialog} style={{ top: '6vh' }}
       maskClosable={false} destroyOnClose onCancel={() => { if (!busy) setVisible(false); }}
       footer={[
         <Button key="cancel" disabled={busy} onClick={() => setVisible(false)}>取消</Button>,
@@ -269,17 +303,33 @@ function BeneficialOwner(props) {
       ]}>
       <Spin spinning={busy}>
         <div className={styles.listTitle}>已有受益人信息</div>
-        <Table columns={columns} dataSource={rows} rowKey="related_id" size="small" bordered
-          pagination={false} loading={listLoading} scroll={{ x: 1800, y: 220 }} />
-        <div className={styles.warning}>联系方式：手机与固话二选一，只能填写一项。</div>
+        <Table className={styles.existingTable} columns={columns} dataSource={rows} rowKey="related_id" size="small" bordered
+          locale={{ emptyText: '暂无受益人信息' }}
+          pagination={false} loading={listLoading} scroll={{ x: 1800, y: 240 }} />
         <Form layout="vertical" className={styles.form}>
-          <Row gutter={24}>{benefitFields(draft, special, base || {}).map(field =>
-            <Col span={field.wide ? 24 : 8} key={field.key}>
-              <Form.Item label={field.label} required={field.required}
-                validateStatus={errors[field.key] ? 'error' : undefined} help={errors[field.key]}>
-                {renderControl(field)}
-              </Form.Item>
-            </Col>)}</Row>
+          {formGroups.map((group, index) => {
+            const keys = group.filter(key => key === 'id_validity' || formFields[key]);
+            if (!keys.length) return null;
+            return <Row gutter={24} key={index}>
+              {keys.map(key => {
+                if (key === 'id_validity') return <Col span={8} key={key} className={styles.singleField}>
+                  <Form.Item label="证件有效期" required={formFields.id_begindate.required || formFields.id_enddate.required}>
+                    <div className={styles.dateHint}>如需手动填写，请按照“1990-01-01”的格式填写</div>
+                    <div className={styles.dateRange}>
+                      {renderFormItem(formFields.id_begindate, false)}
+                      <span>~</span>
+                      {renderFormItem(formFields.id_enddate, false)}
+                    </div>
+                  </Form.Item>
+                </Col>;
+                const span = formSpans[key] || 8;
+                return <Col span={span} key={key}
+                  className={span === 24 ? styles.fullField : (span === 16 ? styles.doubleField : styles.singleField)}>
+                  {renderFormItem(formFields[key])}
+                </Col>;
+              })}
+            </Row>;
+          })}
         </Form>
       </Spin>
     </Modal>
