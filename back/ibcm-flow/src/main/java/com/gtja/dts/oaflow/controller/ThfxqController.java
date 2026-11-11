@@ -213,6 +213,28 @@ public class ThfxqController {
         }
     }
 
+    @PostMapping("/updateBenefitInfo")
+    public R<String> updateBenefitInfo(@RequestBody RelatedInfo benefitInfo) {
+        try {
+            int result = ithfxqService.updateBenefitInfo(benefitInfo);
+            return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
+        } catch (Exception e) {
+            log.error("更新受益所有人失败", e);
+            return R.fail("更新受益所有人失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/updateRelatedEntity")
+    public R<String> updateRelatedEntity(@RequestBody UpdateOrganEntityRequest request) {
+        try {
+            int result = ithfxqService.updateRelatedEntity(request.getClientId(), request.getRelatedName(), request.getOrganEntityList(), request.getCreateUser());
+            return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
+        } catch (Exception e) {
+            log.error("更新其他关联人失败", e);
+            return R.fail("更新其他关联人失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 上传文件
      * @param clientId 客户ID

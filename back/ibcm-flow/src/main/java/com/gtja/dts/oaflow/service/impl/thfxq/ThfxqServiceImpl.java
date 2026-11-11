@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -196,7 +197,13 @@ public class ThfxqServiceImpl implements ThfxqService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteOrganEntity(String clientId, String organFlag, String relatedType, String relatedId, String dataStatus) {
+        if ("5".equals(relatedType)) {
+            validateBenefitIdentity(clientId, relatedId);
+            return thfxqMapper.deleteBenefitInfoTmp(clientId, relatedId)
+                    + thfxqMapper.deleteBenefitInfo(clientId, relatedId);
+        }
         int totalDeleted = 0;
         // 同时删除正式表和临时表的数据，确保数据能被正确删除
         totalDeleted += thfxqMapper.deleteFromRelatInfo(clientId, organFlag, relatedType, relatedId);
@@ -1858,16 +1865,20 @@ public class ThfxqServiceImpl implements ThfxqService {
     public int saveRelatedInfo(List<RelatedInfo> relatedInfoList) {
         int totalAffected = 0;
         for (RelatedInfo relatedInfo : relatedInfoList) {
-            totalAffected += thfxqMapper.insertRelatedInfoTmp(relatedInfo);
+            totalAffected += thfxqMapper.insertRelatedInfoTmp(relatedInfo, false);
         }
         return totalAffected;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int saveOrganEntity(List<RelatedInfo> organEntityList) {
         int totalAffected = 0;
         for (RelatedInfo organEntity : organEntityList) {
-            totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity);
+            if ("5".equals(organEntity.getRelatedType())) {
+                prepareNewBenefit(organEntity);
+            }
+            totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity, false);
         }
         return totalAffected;
     }
@@ -1882,9 +1893,83 @@ public class ThfxqServiceImpl implements ThfxqService {
         int totalAffected = 0;
         for (RelatedInfo organEntity : organEntityList) {
             organEntity.setCreateUser(createUser);
-            totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity);
+            totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity, false);
         }
         return totalAffected;
+    }
+
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int updateBenefitInfo(RelatedInfo benefitInfo) {
+        prepareBenefit(benefitInfo, true);
+        int deleted = thfxqMapper.deleteBenefitInfoTmp(benefitInfo.getClientId(), benefitInfo.getRelatedId())
+                + thfxqMapper.deleteBenefitInfo(benefitInfo.getClientId(), benefitInfo.getRelatedId());
+        if (deleted == 0) {
+            return 0;
+        }
+        // 沿用弹窗提交写临时表的方式；后续客户保存再转主表，人员ID保持不变。
+        return thfxqMapper.insertRelatedInfoTmp(benefitInfo, true);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int updateRelatedEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser) {
+        validateRelatedEntityUpdate(clientId, relatedName, organEntityList);
+        thfxqMapper.deleteOtherRelatedInfoByName(clientId, relatedName);
+        thfxqMapper.deleteOtherRelatedInfoTmpByName(clientId, relatedName);
+        int totalAffected = 0;
+        for (RelatedInfo organEntity : organEntityList) {
+            organEntity.setCreateUser(createUser);
+            totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity, false);
+        }
+        return totalAffected;
+    }
+
+    private void prepareNewBenefit(RelatedInfo benefitInfo) {
+        prepareBenefit(benefitInfo, false);
+        if (thfxqMapper.countBenefitInfoByName(benefitInfo.getClientId(), benefitInfo.getRelatedName()) > 0) {
+            throw new IllegalArgumentException("已存在主体名称为“" + benefitInfo.getRelatedName() + "”的【受益所有人】信息，请勿重复添加！");
+        }
+        benefitInfo.setRelatedId(null);
+    }
+
+    private void prepareBenefit(RelatedInfo benefitInfo, boolean editing) {
+        if (benefitInfo == null || !"5".equals(benefitInfo.getRelatedType())) {
+            throw new IllegalArgumentException("受益人数据或角色不正确");
+        }
+        if (editing) {
+            validateBenefitIdentity(benefitInfo.getClientId(), benefitInfo.getRelatedId());
+        } else if (!StringUtils.hasText(benefitInfo.getClientId())) {
+            throw new IllegalArgumentException("客户号不能为空");
+        }
+        if (!StringUtils.hasText(benefitInfo.getRelatedName())) {
+            throw new IllegalArgumentException("受益人姓名不能为空");
+        }
+        benefitInfo.setOrganFlag("0");
+        if (StringUtils.hasText(benefitInfo.getBnfType())
+                && Arrays.asList(benefitInfo.getBnfType().split(",")).contains("NI")) {
+            benefitInfo.setSeniormgrpos("10");
+        }
+    }
+
+    private void validateBenefitIdentity(String clientId, String relatedId) {
+        if (!StringUtils.hasText(clientId) || !StringUtils.hasText(relatedId)) {
+            throw new IllegalArgumentException("客户号和受益人标识不能为空");
+        }
+    }
+
+    private void validateRelatedEntityUpdate(String clientId, String relatedName, List<RelatedInfo> organEntityList) {
+        if (!StringUtils.hasText(clientId) || !StringUtils.hasText(relatedName)
+                || organEntityList == null || organEntityList.isEmpty()) {
+            throw new IllegalArgumentException("客户号、关联人名称和关联人数据不能为空");
+        }
+        for (RelatedInfo organEntity : organEntityList) {
+            if (organEntity == null || !clientId.equals(organEntity.getClientId())
+                    || !Arrays.asList("1", "2", "3", "4").contains(organEntity.getRelatedType())) {
+                throw new IllegalArgumentException("其他关联人修改仅允许维护当前客户的非受益人角色");
+            }
+        }
     }
 
     @Value("${file.thfxq.save.path:/data/thfxqfiles/}")

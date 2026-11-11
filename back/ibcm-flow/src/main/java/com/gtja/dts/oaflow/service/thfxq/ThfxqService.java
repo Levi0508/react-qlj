@@ -144,6 +144,10 @@ public interface ThfxqService {
      */
     int updateOrganEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser);
 
+    int updateBenefitInfo(RelatedInfo benefitInfo);
+
+    int updateRelatedEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser);
+
     /**
      * 上传文件
      * @param clientId 客户ID
