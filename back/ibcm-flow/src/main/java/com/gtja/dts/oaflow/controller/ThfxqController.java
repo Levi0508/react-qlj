@@ -486,15 +486,6 @@ public class ThfxqController {
         return R.data(JSON.toJSONString(ithfxqService.selectProjInfo(projId, piid, batchId, pkId), SerializerFeature.WriteMapNullValue));
     }
 
-//    /**
-//     * 按流程实例查询隔离墙操作变动审核结果标识
-//     * @param piid 流程实例ID
-//     * @return check_result_flag，0 或 1；未审核时为空
-//     */
-//    @GetMapping("/selectCheckResultFlag")
-//    public R<String> selectCheckResultFlag(@RequestParam(value = "piid") String piid) {
-//        return R.data(JSON.toJSONString(ithfxqService.selectCheckResultFlag(piid), SerializerFeature.WriteMapNullValue));
-//    }
     /**
      * 根据清单自查批次号查询附件列表
      * @param checkBatchId 清单自查批次号
