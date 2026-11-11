@@ -16,6 +16,8 @@ import FileManage from './components/FileManage';
 import FeedBack from './components/FeedBack';
 import ReviewRecord from './components/ReviewRecord';
 import RelatedPerson from './components/RelatedPerson';
+import BeneficialOwner from './components/BeneficialOwner';
+import { normalizeRelatedInfo, benefitListErrors } from './utils/beneficiary';
 import BusinessRelation from './components/BusinessRelation';
 import PDFExporter from './components/PDFExporter';
 
@@ -508,8 +510,8 @@ class CustomForm extends React.Component {
     }
   }
 
-  // 填写节点（xmzqr）导出前的必填校验，规则与 v10 编辑页 submit() 保持一致（老版本受益人规则）
-  validateBeforeExport = () => {
+  // 填写节点保留完整校验；其他节点仅补齐 syr_2 二期受益人的导出校验。
+  validateBeforeExport = (benefitOnly = false) => {
     const { basicInfo = {}, relatedInfo = {} } = this.state;
     const isEmpty = (val) => val === null || val === undefined || String(val).trim() === '';
     const splitVal = (val) => (Array.isArray(val) ? val : (isEmpty(val) ? [] : String(val).split(',')));
@@ -533,18 +535,17 @@ class CustomForm extends React.Component {
       completed_cdd: '已开展的反洗钱尽职调查工作', low_risk_explanation: '客户洗钱风险较低的评估说明',
       take_measures: '后续措施'
     };
-    const msgs = [];
+    const msgs = isOrgan ? benefitListErrors(beneficialOwner, basicInfo.is_special === '1') : [];
     const checkFields = (fields) => fields.forEach(field => {
       if (isEmpty(basicInfo[field])) msgs.push(`请填写“${fieldLabels[field] || field}”`);
     });
 
-    if (basicInfo.is_special === '1') {
+    if (!benefitOnly && basicInfo.is_special === '1') {
       // 存在反洗钱特殊情况：关联人只校验姓名，再校验特殊情况模块和附件
       if (isOrgan) {
         const noName = (list) => list.length === 0 || list.some(item => !item || isEmpty(item.related_name));
         if (noName(legalRep)) msgs.push('请填写法定代表人姓名');
         if (noName(authorizedRep)) msgs.push('请填写授权代表人姓名');
-        if (noName(beneficialOwner)) msgs.push('请填写受益所有人姓名');
       }
       if (isEmpty(basicInfo.communication_records)) msgs.push('请上传“与客户沟通记录”文件');
       if (isEmpty(basicInfo.agree_records)) msgs.push('请上传“二级部门负责人同意的记录”文件');
@@ -557,11 +558,10 @@ class CustomForm extends React.Component {
       if (matters.includes('2')) fields.push('missing_draft');
       if (matters.includes('99')) fields.push('special_matters_other');
       checkFields(fields);
-    } else if (isOrgan) {
+    } else if (!benefitOnly && isOrgan) {
       // 机构户：基本信息全部必填，法定代表人、授权代表人、受益所有人至少一条
       if (legalRep.length === 0) msgs.push('请添加法定代表人信息');
       if (authorizedRep.length === 0) msgs.push('请添加授权代表人信息');
-      if (beneficialOwner.length === 0) msgs.push('请添加受益所有人信息');
 
       const fields = ['client_name', 'office_address', 'register_country', 'register_money_type', 'register_fund',
         'industry_type', 'tel', 'setup_date', 'id_type', 'id_no', 'id_begindate', 'id_enddate', 'busi_scope', 'associated_date'];
@@ -582,13 +582,6 @@ class CustomForm extends React.Component {
             msgs.push(`${typeName}${name}的是否政府部门不能为空`);
           }
           if (item.organ_flag === '0' && isEmpty(item.birthday)) msgs.push(`${typeName}${name}的出生日期不能为空`);
-          if (item.related_type === '5') {
-            if (isEmpty(item.beneficiary)) msgs.push(`${typeName}${name}的受益所有人类型不能为空`);
-            if (isEmpty(item.address)) msgs.push(`${typeName}${name}的地址不能为空`);
-            if (['A1', 'A2', 'B1', 'D1'].includes(item.beneficiary) && isEmpty(item.shareholding_ratio)) {
-              msgs.push(`${typeName}${name}的股权/表决权比例不能为空`);
-            }
-          }
           if ((item.related_type === '1' || item.related_type === '4') && isEmpty(item.mobno1)) {
             msgs.push(`${typeName}${name}的联系方式不能为空`);
           }
@@ -598,8 +591,7 @@ class CustomForm extends React.Component {
       validateRelatedPerson(controllingShareholder, '控股股东');
       validateRelatedPerson(actualController, '实际控制人');
       validateRelatedPerson(authorizedRep, '授权代表人');
-      validateRelatedPerson(beneficialOwner, '受益所有人');
-    } else {
+    } else if (!benefitOnly) {
       // 自然人
       checkFields(['client_name', 'birthday', 'id_address', 'address', 'nationality', 'gender', 'income',
         'profession_code', 'id_type', 'id_no', 'id_begindate', 'id_enddate', 'associated_date']);
@@ -698,30 +690,7 @@ class CustomForm extends React.Component {
           const resp = relatedRespList[i];
           if (resp.success && resp.data) {
             const rawList = JSON.parse(resp.data);
-            newRelatedInfo[typeKeys[i]] = rawList.map(item => ({
-              address: item.address,
-              mobno1: item.mobno1,
-              beneficiary: item.beneficiary,
-              birthday: item.birthday,
-              client_id: item.clientId,
-              create_time: item.createTime,
-              create_user: item.createUser,
-              id_begindate: item.idBegindate,
-              id_enddate: item.idEnddate,
-              id_no: item.idNo,
-              id_type: item.idType,
-              is_government_dept: item.isGovernmentDept,
-              nationality: item.nationality,
-              object_id: item.objectId,
-              organ_flag: item.organFlag,
-              related_id: item.relatedId,
-              related_name: item.relatedName,
-              related_type: item.relatedType,
-              shareholding_ratio: item.shareholdingRatio,
-              update_time: item.updateTime,
-              update_user: item.updateUser,
-              data_status: item.dataStatus
-            }));
+            newRelatedInfo[typeKeys[i]] = rawList.map(normalizeRelatedInfo);
           } else {
             newRelatedInfo[typeKeys[i]] = [];
           }
@@ -741,7 +710,7 @@ class CustomForm extends React.Component {
       }
     }
 
-    if (this.state.curNode?.nodeCode === 'xmzqr' && !this.validateBeforeExport()) return;
+    if (!this.validateBeforeExport(this.state.curNode?.nodeCode !== 'xmzqr')) return;
 
     if (!this.pdfRef.current) {
       message.error('PDF内容未就绪');
@@ -1140,6 +1109,9 @@ class CustomForm extends React.Component {
 
     // 校验单个关联人记录的必填字段
     const validateRelatedPersonRecord = (record, typeLabel) => {
+      if (typeLabel === '受益所有人') {
+        return benefitListErrors([record], isSpecial === '1');
+      }
       const errors = [];
       // 获取是否政府部门标志（默认为非政府部门）
       const isGovDept = record.is_government_dept === '1' || record.isGovernmentDept === '1';
@@ -1786,7 +1758,7 @@ class CustomForm extends React.Component {
                       {/* 受益所有人 - 仅机构户显示 */}
                       {organFlag === '1' && (
                         <div id="beneficialOwner" style={{ scrollMarginTop: `${navTop + 10}px`, marginTop: '20px' }}>
-                          <RelatedPerson
+                          <BeneficialOwner
                             title="受益所有人"
                             id="beneficialOwner"
                             relatedType="5"
@@ -2077,7 +2049,7 @@ class CustomForm extends React.Component {
                     {/* 受益所有人 - 仅机构户显示 */}
                     {organFlag === '1' && (
                       <div id="beneficialOwner" style={{ scrollMarginTop: `${navTop + 10}px`, marginTop: '20px' }}>
-                        <RelatedPerson
+                        <BeneficialOwner
                           title="受益所有人"
                           id="beneficialOwner"
                           relatedType="5"

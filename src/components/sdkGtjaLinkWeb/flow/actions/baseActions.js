@@ -13,6 +13,7 @@ import linkRequest from '../../utils/linkRequest';
 import utils from '../../utils/utils';
 import services from '../../services';
 import store from '@/store';
+import { benefitListErrors } from '@/pages/ibcm001/utils/beneficiary';
 
 // personType转taskType
 const personTypeToTaskType = {
@@ -1866,6 +1867,10 @@ const baseActions = {
 
                     // 校验单个关联人记录的必填字段
                     const validateRelatedPersonRecord = (record, typeLabel, relatedType) => {
+                        if (flowCode === 'IBCM001' && relatedType === '5') {
+                            const errors = benefitListErrors([record], isSpecial === '1');
+                            return errors.length ? errors : null;
+                        }
                         const errors = [];
                         const relatedName = record.related_name || record.relatedName;
                         const organFlag = record.organ_flag || record.organFlag;
@@ -2099,6 +2104,10 @@ const baseActions = {
 
                         // 校验单个关联人记录的必填字段
                         const validateRelatedPersonRecord = (record, typeLabel, relatedType) => {
+                            if (flowCode === 'IBCM001' && relatedType === '5') {
+                                const errors = benefitListErrors([record], isSpecial === '1');
+                                return errors.length ? errors : null;
+                            }
                             const errors = [];
                             const relatedName = record.related_name || record.relatedName;
                             const organFlag = record.organ_flag || record.organFlag;
