@@ -1,4 +1,5 @@
 import React from 'react';
+import { benefitBaseFields, benefitFields, benefitValue, getBenefitBase } from '../../utils/beneficiary';
 
 // ============ 样式注入 ============
 const styleSheet = `
@@ -432,34 +433,31 @@ const PDFContent = React.forwardRef((props, ref) => {
 
   // 渲染受益所有人
   const renderBeneficiary = () => {
-    return renderPersonList('受益所有人信息', relatedInfo5, (item) => (
-      <>
-        <div className="pdf-table-row">
-          <div className="pdf-cell-label pdf-col-3">受益所有人姓名</div>
-          <div className="pdf-cell-value pdf-col-5">{item.related_name || '-'}</div>
-          <div className="pdf-cell-label pdf-col-3">{item.organ_flag === '1' ? '国家或地区' : '国籍'}</div>
-          <div className="pdf-cell-value pdf-col-5">{formatDictMap(dictData, 'nationality_list', item.nationality)}</div>
-          <div className="pdf-cell-label pdf-col-3">证件类型</div>
-          <div className="pdf-cell-value pdf-col-5">{formatDictMap(dictData, 'id_type_list', item.id_type)}</div>
+    const base = getBenefitBase(relatedInfo5) || {};
+    return renderPersonList('受益所有人信息', relatedInfo5, item => {
+      const fields = benefitBaseFields.concat(benefitFields(item, false, base));
+      const groups = [];
+      fields.forEach(field => {
+        const last = groups[groups.length - 1];
+        if (field.wide || !last || last.length === 3 || last[0].wide) groups.push([field]);
+        else last.push(field);
+      });
+      return groups.map((group, index) => (
+        <div className="pdf-table-row" key={index}>
+          {group.map(field => (
+            <React.Fragment key={field.key}>
+              <div className="pdf-cell-label pdf-col-3" style={{
+                whiteSpace: 'normal', wordBreak: 'break-all', overflowWrap: 'break-word', lineHeight: 1.5
+              }}>{field.label}</div>
+              <div className="pdf-cell-value" style={{
+                width: group.length === 1 ? '87.5%' : (group.length === 2 ? '37.5%' : '20.83%'),
+                whiteSpace: 'normal', wordBreak: 'break-all'
+              }}>{benefitValue(benefitBaseFields.includes(field) ? base : item, field, dictData)}</div>
+            </React.Fragment>
+          ))}
         </div>
-        <div className="pdf-table-row">
-          <div className="pdf-cell-label pdf-col-3">证件号码</div>
-          <div className="pdf-cell-value pdf-col-5">{item.id_no || '-'}</div>
-          <div className="pdf-cell-label pdf-col-3">证件有效期期限</div>
-          <div className="pdf-cell-value pdf-col-5">{item.id_begindate || '-'}至{item.id_enddate || '-'}</div>
-          <div className="pdf-cell-label pdf-col-3">出生年月</div>
-          <div className="pdf-cell-value pdf-col-5">{item.birthday || '-'}</div>
-        </div>
-        <div className="pdf-table-row">
-          <div className="pdf-cell-label pdf-col-3">股权/表决权比例</div>
-          <div className="pdf-cell-value pdf-col-5">{item.shareholding_ratio ? `${item.shareholding_ratio}%` : '-'}</div>
-          <div className="pdf-cell-label pdf-col-3">受益所有人类型</div>
-          <div className="pdf-cell-value pdf-col-5">{formatDictMap(dictData, 'beneficiary_list', item.beneficiary)}</div>
-          <div className="pdf-cell-label pdf-col-3">联系地址</div>
-          <div className="pdf-cell-value pdf-col-5">{item.address || '-'}</div>
-        </div>
-      </>
-    ));
+      ));
+    });
   };
 
   return (

@@ -1,4 +1,5 @@
 import request001 from '../services';
+import { normalizeRelatedInfo } from './beneficiary';
 
 /**
  * 数据管理器 - 负责所有接口数据的获取和转换
@@ -88,29 +89,11 @@ class DataManager {
    * @returns {Promise<Object>} 所有字典数据
    */
   async loadAllDictData() {
-    // 检查是否已经缓存了字典数据
-    if (Object.keys(this.cache.dictData).length > 0) {
-      const dictData = {};
-      Object.keys(this.cache.dictData).forEach(key => {
-        if (key.startsWith('dict_')) {
-          const cacheData = this.cache.dictData[key];
-          // 从缓存键中提取字典类型
-          const dictType = key.replace('dict_', '');
-          dictData[`${dictType}_list`] = cacheData;
-        } else if (key.startsWith('select_')) {
-          const cacheData = this.cache.selectList[key];
-          // 从缓存键中提取字典类型
-          const dictType = key.replace('select_', '');
-          dictData[`${dictType}_list`] = cacheData;
-        }
-      });
-      return dictData;
-    }
-
     const dictConfigs = [
       { entryNo: '1040', bindData: 'nationality' }, // 国籍
       { entryNo: 'PROFESSION_CODE', bindData: 'profession_code' }, // 职业分类
-      { entryNo: 'BENEFICIAL_TYPE', bindData: 'beneficiary' } // 受益所有人类型
+      { entryNo: 'BENEFICIAL_TYPE', bindData: 'beneficiary' },
+      { entryNo: 'BENEFICIAL_TYPENew', bindData: 'bnf_type_new' } // 受益所有人类型
     ];
 
     const keyConfigs = [
@@ -124,8 +107,36 @@ class DataManager {
       { keyName: 'grade_value', bindData: 'grade_value' }, // 风险等级
       { keyName: 'client_type', bindData: 'client_type' }, // 客户类型
       { keyName: 'special_matters', bindData: 'special_matters' }, // 特殊事项
-      { keyName: 'client_status', bindData: 'client_status' } // 客户状态
+      { keyName: 'client_status', bindData: 'client_status' },
+      { keyName: 'benefit_yesno', bindData: 'benefit_yesno' },
+      { keyName: 'benefit_gender', bindData: 'benefit_gender' },
+      { keyName: 'benefit_actctrlcpny', bindData: 'benefit_actctrlcpny' },
+      { keyName: 'benefit_actctrltype', bindData: 'benefit_actctrltype' },
+      { keyName: 'benefit_seniormgrpos', bindData: 'benefit_seniormgrpos' },
+      { keyName: 'benefit_seniormgrposcn', bindData: 'benefit_seniormgrposcn' },
+      { keyName: 'benefit_flag', bindData: 'benefit_flag' },
+      { keyName: 'benefit_company_no', bindData: 'benefit_company_no' } // 客户状态
     ];
+
+    // 检查是否已经缓存了字典数据
+    // 缓存必须覆盖本轮全部配置，并按页面字段名组装，避免遗漏新增的键值字典。
+    if (dictConfigs.every(config => this.cache.dictData[`dict_${config.entryNo}`]) &&
+        keyConfigs.every(config => this.cache.selectList[`select_${config.bindData}`])) {
+      const dictData = {};
+      dictConfigs.forEach(config => {
+        const cacheData = this.cache.dictData[`dict_${config.entryNo}`];
+        // 从缓存键中提取字典类型
+        const dictType = config.bindData;
+        dictData[`${dictType}_list`] = cacheData;
+      });
+      keyConfigs.forEach(config => {
+        const cacheData = this.cache.selectList[`select_${config.bindData}`];
+        // 从缓存键中提取字典类型
+        const dictType = config.bindData;
+        dictData[`${dictType}_list`] = cacheData;
+      });
+      return dictData;
+    }
 
     try {
       // 并行获取所有字典数据
@@ -271,30 +282,7 @@ class DataManager {
       if (response.success && response.data) {
         const data = JSON.parse(response.data);
         // 添加字段名映射，将驼峰式转换为下划线式
-        const mappedData = data.map(item => ({
-          address: item.address,
-          mobno1: item.mobno1,
-          beneficiary: item.beneficiary,
-          birthday: item.birthday,
-          client_id: item.clientId,
-          create_time: item.createTime,
-          create_user: item.createUser,
-          id_begindate: item.idBegindate,
-          id_enddate: item.idEnddate,
-          id_no: item.idNo,
-          id_type: item.idType,
-          is_government_dept: item.isGovernmentDept,
-          nationality: item.nationality,
-          object_id: item.objectId,
-          organ_flag: item.organFlag,
-          related_id: item.relatedId,
-          related_name: item.relatedName,
-          related_type: item.relatedType,
-          shareholding_ratio: item.shareholdingRatio,
-          update_time: item.updateTime,
-          update_user: item.updateUser,
-          data_status: item.dataStatus
-        }));
+        const mappedData = data.map(normalizeRelatedInfo);
 
         this.cache.relatedInfo[cacheKey] = mappedData;
         return mappedData;

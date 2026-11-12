@@ -221,6 +221,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
                     label: item.areaName
                 }));
                 setCityOptions(options);
+                return options;
             } else {
                 setCityOptions([]);
             }
@@ -230,6 +231,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
         } finally {
             setAddressLoading(false);
         }
+        return [];
     };
 
     // 获取区县数据（机构户）
@@ -247,6 +249,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
                     label: item.areaName
                 }));
                 setDistrictOptions(options);
+                return options;
             } else {
                 setDistrictOptions([]);
             }
@@ -256,6 +259,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
         } finally {
             setAddressLoading(false);
         }
+        return [];
     };
 
     // 获取城市数据（个人户证件地址）
@@ -366,8 +370,9 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
         setDistrictName('');
         setCityOptions([]);
         setDistrictOptions([]);
+        form.setFieldsValue({ city: undefined, district: undefined });
         if (value) {
-            fetchCities(value);
+            fetchCities(option.key);
         }
     };
 
@@ -378,8 +383,10 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
         setDistrict('');
         setDistrictName('');
         setDistrictOptions([]);
-        if (value && province) {
-            fetchDistricts(province, value);
+        form.setFieldsValue({ district: undefined });
+        const selectedProvince = provinceOptions.find(item => item.label === province || item.value === province);
+        if (value && selectedProvince) {
+            fetchDistricts(selectedProvince.value, option.key);
         }
     };
 
@@ -456,6 +463,48 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
     };
 
     // 初始化省份数据
+    useEffect(() => {
+        if (isOrganization) fetchProvinces();
+    }, [clientId, isOrganization]);
+
+    useEffect(() => {
+        if (!isOrganization || !provinceOptions.length) return;
+
+        const initializeOfficeAddress = async () => {
+            const savedProvince = basicInfo.province || '';
+            const savedCity = basicInfo.city || '';
+            const savedDistrict = basicInfo.district || '';
+            const selectedProvince = provinceOptions.find(item => item.label === savedProvince || item.value === savedProvince);
+            const provinceValue = selectedProvince ? selectedProvince.label : savedProvince;
+            setProvince(provinceValue);
+            setProvinceName(provinceValue);
+            setCity(savedCity);
+            setCityName(savedCity);
+            setDistrict(savedDistrict);
+            setDistrictName(savedDistrict);
+            setCityOptions([]);
+            setDistrictOptions([]);
+            form.setFieldsValue({ province: provinceValue, city: savedCity, district: savedDistrict });
+            if (!selectedProvince) return;
+
+            const cities = await fetchCities(selectedProvince.value);
+            const selectedCity = cities.find(item => item.label === savedCity || item.value === savedCity);
+            if (!selectedCity) return;
+            setCity(selectedCity.label);
+            setCityName(selectedCity.label);
+            form.setFieldsValue({ city: selectedCity.label });
+
+            const districts = await fetchDistricts(selectedProvince.value, selectedCity.value);
+            const selectedDistrict = districts.find(item => item.label === savedDistrict || item.value === savedDistrict);
+            if (selectedDistrict) {
+                setDistrict(selectedDistrict.label);
+                setDistrictName(selectedDistrict.label);
+                form.setFieldsValue({ district: selectedDistrict.label });
+            }
+        };
+
+        initializeOfficeAddress();
+    }, [clientId, isOrganization, basicInfo.province, basicInfo.city, basicInfo.district, provinceOptions]);
 
     // 根据区域代码获取中文名称的辅助函数
     const getAddressNameByCode = (code, options) => {
@@ -663,7 +712,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
                                                 disabled={!editable}
                                             >
                                                 {provinceOptions.map(item => (
-                                                    <Option key={item.value} value={item.value}>{item.label}</Option>
+                                                    <Option key={item.value} value={item.label}>{item.label}</Option>
                                                 ))}
                                             </Select>
                                         )}
@@ -683,7 +732,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
                                                 disabled={!province || !editable}
                                             >
                                                 {cityOptions.map(item => (
-                                                    <Option key={item.value} value={item.value}>{item.label}</Option>
+                                                    <Option key={item.value} value={item.label}>{item.label}</Option>
                                                 ))}
                                             </Select>
                                         )}
@@ -703,7 +752,7 @@ function BasicInfo({ basicInfo, attachments = [], dictData, clientId, editable =
                                                 onChange={handleDistrictChange}
                                             >
                                                 {districtOptions.map(item => (
-                                                    <Option key={item.value} value={item.value}>{item.label}</Option>
+                                                    <Option key={item.value} value={item.label}>{item.label}</Option>
                                                 ))}
                                             </Select>
                                         )}

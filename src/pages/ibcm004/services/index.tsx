@@ -11,6 +11,35 @@ import store from '@/store';
 
 
 export default {
+  // 二期受益人字段随每次弹窗提交写入临时表；不依赖核验接口。
+  async selectBenefitInfo(params) {
+    return this.selectRelatedInfo({ ...params, relatedType: '5', dataType: '1' });
+  },
+  async saveBenefitInfo(data) {
+    return this.saveOrganEntity([{ ...data, relatedType: '5', organFlag: '0' }]);
+  },
+  async updateBenefitInfo(data) {
+    return await request({
+      url: 'thfxq/updateBenefitInfo',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: { ...data, relatedType: '5', organFlag: '0' }
+    });
+  },
+  async deleteBenefitInfo(data) {
+    return this.deleteOrganEntity({ ...data, relatedType: '5', organFlag: '0' });
+  },
+  // 此专用入口只维护非受益人角色，避免同名删除重插波及受益人。
+  async updateRelatedEntity(data) {
+    return await request({
+      url: 'thfxq/updateRelatedEntity',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data
+    });
+  },
+
+
   async selectDict(data) {
     return await request({
       url: 'thfxq/selectDict',

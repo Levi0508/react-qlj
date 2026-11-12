@@ -1663,7 +1663,7 @@ const baseActions = {
                                 data: updateParams
                             });
 
-                            if (flowCode === 'IBCM001') {
+                            if (flowCode === 'IBCM001' || flowCode === 'IBCM004') {
                                 const errorMsg = getClientUpdateError(updateResult);
                                 if (errorMsg) {
                                     message.warn(`客户信息保存失败: ${errorMsg}`);
@@ -1678,7 +1678,7 @@ const baseActions = {
                     }
                 } catch (error) {
                     console.error("调用updateClient接口时出错:", error);
-                    if (flowCode === 'IBCM001') {
+                    if (flowCode === 'IBCM001' || flowCode === 'IBCM004') {
                         message.error(`客户信息保存失败: ${error.message || '未知错误'}`);
                         return false;
                     }
@@ -1878,7 +1878,7 @@ const baseActions = {
 
                     // 校验单个关联人记录的必填字段
                     const validateRelatedPersonRecord = (record, typeLabel, relatedType) => {
-                        if (flowCode === 'IBCM001' && relatedType === '5') {
+                        if ((flowCode === 'IBCM001' || flowCode === 'IBCM004') && relatedType === '5') {
                             const errors = benefitListErrors([record], isSpecial === '1');
                             return errors.length ? errors : null;
                         }
@@ -2115,7 +2115,7 @@ const baseActions = {
 
                         // 校验单个关联人记录的必填字段
                         const validateRelatedPersonRecord = (record, typeLabel, relatedType) => {
-                            if (flowCode === 'IBCM001' && relatedType === '5') {
+                            if ((flowCode === 'IBCM001' || flowCode === 'IBCM004') && relatedType === '5') {
                                 const errors = benefitListErrors([record], isSpecial === '1');
                                 return errors.length ? errors : null;
                             }
@@ -2583,7 +2583,7 @@ const baseActions = {
                     data: updateParams
                 });
 
-                if (flowCode === 'IBCM001') {
+                if (flowCode === 'IBCM001' || flowCode === 'IBCM004') {
                     const errorMsg = getClientUpdateError(updateResult);
                     if (errorMsg) {
                         message.warn(`客户信息更新失败: ${errorMsg}`);

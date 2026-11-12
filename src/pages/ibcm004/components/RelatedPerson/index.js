@@ -4,6 +4,7 @@ import { Resizable } from 'react-resizable';
 import 'react-resizable/css/styles.css';
 import moment from 'moment';
 import services from '../../services/index';
+import { normalizeRelatedInfo, relatedInfoPayload } from '../../utils/beneficiary';
 import store from '@/store';
 import useFilePreviewWindow from '@/hooks/useFilePreviewWindow';
 
@@ -33,6 +34,7 @@ const ResizeableTitle = (props) => {
 function RelatedPerson({
     title,
     id,
+    attachmentOnly = false,
     relatedType,
     relatedInfo = [],
     attachments = [],
@@ -222,30 +224,7 @@ function RelatedPerson({
             const allRelatedInfo = {};
             results.forEach((result, index) => {
                 // 添加字段名映射，将驼峰式转换为下划线式
-                const mappedData = result.data.map(item => ({
-                        address: item.address,
-                        beneficiary: item.beneficiary,
-                        birthday: item.birthday,
-                        client_id: item.clientId,
-                        create_time: item.createTime,
-                        create_user: item.createUser,
-                        id_begindate: item.idBegindate,
-                        id_enddate: item.idEnddate,
-                        id_no: item.idNo,
-                        id_type: item.idType,
-                        is_government_dept: item.isGovernmentDept || item.isGovermentDept,
-                        nationality: item.nationality,
-                        object_id: item.objectId,
-                        organ_flag: item.organFlag,
-                        related_id: item.relatedId,
-                        related_name: item.relatedName,
-                        related_type: item.relatedType,
-                        shareholding_ratio: item.shareholdingRatio,
-                        update_time: item.updateTime,
-                        update_user: item.updateUser,
-                        data_status: item.dataStatus,
-                        mobno1: item.mobno1
-                    }));
+                const mappedData = result.data.map(normalizeRelatedInfo);
                 allRelatedInfo[typeKeys[index]] = mappedData;
             });
 
@@ -410,8 +389,9 @@ function RelatedPerson({
 
             if (response && response.success && response.data) {
                 const items = Array.isArray(response.data) ? response.data : JSON.parse(response.data || '[]');
-                const batchList = items.map(pItem => {
+                const batchList = items.filter(item => String(item.relatedType || item.related_type) !== '5').map(pItem => {
                     const mappedItem = {
+                        ...relatedInfoPayload(normalizeRelatedInfo(pItem)),
                         clientId: pItem.clientId,
                         relatedId: pItem.relatedId,
                         relatedType: pItem.relatedType,
@@ -624,30 +604,7 @@ function RelatedPerson({
                             if (selectResponse && selectResponse.success && selectResponse.data) {
                                 // 添加字段名映射，将驼峰式转换为下划线式
                                 const rawData = Array.isArray(selectResponse.data) ? selectResponse.data : JSON.parse(selectResponse.data || '[]');
-                                const mappedData = rawData.map(item => ({
-                                    address: item.address,
-                                    beneficiary: item.beneficiary,
-                                    birthday: item.birthday,
-                                    client_id: item.clientId,
-                                    create_time: item.createTime,
-                                    create_user: item.createUser,
-                                    id_begindate: item.idBegindate,
-                                    id_enddate: item.idEnddate,
-                                    id_no: item.idNo,
-                                    id_type: item.idType,
-                                    is_government_dept: item.isGovernmentDept || item.isGovermentDept,
-                                    nationality: item.nationality,
-                                    object_id: item.objectId,
-                                    organ_flag: item.organFlag,
-                                    related_id: item.relatedId,
-                                    related_name: item.relatedName,
-                                    related_type: item.relatedType,
-                                    shareholding_ratio: item.shareholdingRatio,
-                                    update_time: item.updateTime,
-                                    update_user: item.updateUser,
-                                    data_status: item.dataStatus,
-                                    mobno1: item.mobno1
-                                }));
+                                const mappedData = rawData.map(normalizeRelatedInfo);
 
                                 // 将数据传递给父组件
                                 setTimeout(() => {
@@ -720,7 +677,7 @@ function RelatedPerson({
                 const createUser = userInfo?.username || userInfo?.userId || '';
 
                 // 调用更新接口 - 根据后端接口文档调整参数格式
-                const updateResponse = await services.updateOrganEntity({
+                const updateResponse = await services.updateRelatedEntity({
                     clientId: clientId,
                     relatedName: baseParams.relatedName,
                     organEntityList: updatedBatchList,
@@ -963,6 +920,34 @@ function RelatedPerson({
         }
     ];
 
+    const attachmentContent = (
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
+                    <h3 style={{ marginBottom: '10px', fontSize: '14px', color: '#303133' }}>
+                        附件信息&nbsp;
+                        <Tooltip placement="right" title={
+                            relatedType === '1' ? '请上传法定代表人身份证明文件的复印件' :
+                            relatedType === '2' ? '请上传营业执照复印件（控股股东如为非自然人-公司）、控股股东身份证明文件的复印件（如为自然人）' :
+                            relatedType === '3' ? '请上传营业执照复印件（实际控制人如为非自然人-公司）、实际控制人身份证明文件的复印件（如为自然人）' :
+                            relatedType === '4' ? '请上传授权代表人身份证明文件的复印件、授权委托书（授权代表人非法代时适用）' :
+                            relatedType === '5' ? '请上传受益所有人的身份证明文件的复印件；确认受益所有人的证明文件，包括但不限于股权架构图、公司章程、委托持股协议、一致行动协议、表决权差异安排协议、任命文件等；关于股权/表决权等比例计算的说明（如涉及比例）；在受益所有人信息查询管理系统（BOMIS系统）备案的信息截图（如有）。' :
+                            ''
+                        }>
+                            <Icon type="question-circle" />
+                        </Tooltip>
+                    </h3>
+                    <Table
+                        dataSource={attachments}
+                        columns={attachmentColumns}
+                        components={attachmentTableComponents}
+                        pagination={false}
+                        size="small"
+                        className="related-person-attachment-table"
+                        scroll={{ x: 770 }}
+                    />
+                </div>
+    );
+    if (attachmentOnly) return attachmentContent;
+
     if (relatedInfo.length === 0 && !editable) {
         return (
             <Card className="box-card" id={id} title={title}>
@@ -1115,30 +1100,7 @@ function RelatedPerson({
 
             {/* 附件信息 */}
             {
-                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
-                    <h3 style={{ marginBottom: '10px', fontSize: '14px', color: '#303133' }}>
-                        附件信息&nbsp;
-                        <Tooltip placement="right" title={
-                            relatedType === '1' ? '请上传法定代表人身份证明文件的复印件' :
-                            relatedType === '2' ? '请上传营业执照复印件（控股股东如为非自然人-公司）、控股股东身份证明文件的复印件（如为自然人）' :
-                            relatedType === '3' ? '请上传营业执照复印件（实际控制人如为非自然人-公司）、实际控制人身份证明文件的复印件（如为自然人）' :
-                            relatedType === '4' ? '请上传授权代表人身份证明文件的复印件、授权委托书（授权代表人非法代时适用）' :
-                            relatedType === '5' ? '请上传受益所有人的身份证明文件的复印件；确认受益所有人的证明文件，包括但不限于股权架构图、公司章程、委托持股协议、一致行动协议、表决权差异安排协议、任命文件等；关于股权/表决权等比例计算的说明（如涉及比例）；在受益所有人信息查询管理系统（BOMIS系统）备案的信息截图（如有）。' :
-                            ''
-                        }>
-                            <Icon type="question-circle" />
-                        </Tooltip>
-                    </h3>
-                    <Table
-                        dataSource={attachments}
-                        columns={attachmentColumns}
-                        components={attachmentTableComponents}
-                        pagination={false}
-                        size="small"
-                        className="related-person-attachment-table"
-                        scroll={{ x: 770 }}
-                    />
-                </div>
+                attachmentContent
             }
 
             {/* 编辑/添加关联人弹窗 */}

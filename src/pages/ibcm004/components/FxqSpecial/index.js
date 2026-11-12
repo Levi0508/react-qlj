@@ -435,7 +435,9 @@ const FxqSpecial = forwardRef(({ basicInfo, dictData, clientId, editable = false
     };
 
     return (
-        <Card className="box-card" id="fxqSpecial" title="反洗钱特殊情况">
+        <Card className="box-card" id="fxqSpecial" title={<span>反洗钱特殊情况
+          <span style={{ color: '#f56c6c', fontSize: 14, fontWeight: 'normal' }}>（根据外规营业执照必须提交，此处特殊情况仅针对除营业执照、受益所有人之外的信息和底稿不完善）</span>
+        </span>}>
 
             {/* 反洗钱特殊情况申请 */}
             <div style={{ marginTop: '20px', padding: '20px' }}>
