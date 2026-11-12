@@ -194,7 +194,9 @@ function BeneficialOwner(props) {
       </Select>;
     }
     if (field.type === 'textarea') return <Input.TextArea rows={2} placeholder="请输入" value={value || ''} onChange={event => changeField(field, event.target.value)} />;
-    return <Input size="small" placeholder="请输入" value={value || ''} onChange={event => changeField(field, event.target.value)} />;
+    return <Input size="small" placeholder="请输入" value={value || ''}
+      disabled={field.key === 'related_name' && mode === 'edit'}
+      onChange={event => changeField(field, event.target.value)} />;
   };
 
   const formFields = benefitFields(draft, special, base || {}).reduce((result, field) => {

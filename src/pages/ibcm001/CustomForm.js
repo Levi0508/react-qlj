@@ -439,6 +439,7 @@ class CustomForm extends React.Component {
     if (clientId) {
       // 如果data中包含allRelatedInfo（从reloadAllRelatedInfo方法传递）
       if (data && data.allRelatedInfo) {
+        dataManager.clearRelatedInfoCache(clientId);
         try {
           const newRelatedInfo = { ...data.allRelatedInfo };
           this.setState({ relatedInfo: newRelatedInfo });
@@ -449,6 +450,7 @@ class CustomForm extends React.Component {
         }
       }
       else if (data && data.data) {
+        dataManager.clearRelatedInfoCache(clientId, data.relatedType);
         try {
           const relatedType = data.relatedType;
           const newData = Array.isArray(data.data) ? data.data : JSON.parse(data.data || '[]');

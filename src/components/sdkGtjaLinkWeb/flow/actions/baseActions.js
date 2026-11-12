@@ -1663,6 +1663,13 @@ const baseActions = {
                                 data: updateParams
                             });
 
+                            if (flowCode === 'IBCM001') {
+                                const errorMsg = getClientUpdateError(updateResult);
+                                if (errorMsg) {
+                                    message.warn(`客户信息保存失败: ${errorMsg}`);
+                                    return false;
+                                }
+                            }
                             if (updateResult && updateResult.success) {
                                 message.success('保存成功')
                                 // 可以在这里添加成功后的处理逻辑
@@ -1671,6 +1678,10 @@ const baseActions = {
                     }
                 } catch (error) {
                     console.error("调用updateClient接口时出错:", error);
+                    if (flowCode === 'IBCM001') {
+                        message.error(`客户信息保存失败: ${error.message || '未知错误'}`);
+                        return false;
+                    }
                 }
             }
         }
@@ -2572,6 +2583,13 @@ const baseActions = {
                     data: updateParams
                 });
 
+                if (flowCode === 'IBCM001') {
+                    const errorMsg = getClientUpdateError(updateResult);
+                    if (errorMsg) {
+                        message.warn(`客户信息更新失败: ${errorMsg}`);
+                        return;
+                    }
+                }
                 if (updateResult && updateResult.success) {
                     message.success('客户信息更新成功');
                 } else {
@@ -3163,5 +3181,15 @@ const baseActions = {
         await flowServices.recordSmartCommit(params);
     },
 };
+
+function getClientUpdateError(result) {
+    if (!result) return '网络错误';
+    if (!result.success) return result.msg || result.message || result.ErrMsg || '更新失败';
+    const data = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+    if (!data || String(data.returnCode) !== '0') {
+        return (data && data.returnMsg) || '存储过程未返回保存成功';
+    }
+    return '';
+}
 
 export default baseActions;
