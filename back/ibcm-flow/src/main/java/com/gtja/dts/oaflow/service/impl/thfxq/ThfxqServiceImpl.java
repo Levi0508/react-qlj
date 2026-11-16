@@ -1863,6 +1863,7 @@ public class ThfxqServiceImpl implements ThfxqService {
 
     @Override
     public int saveRelatedInfo(List<RelatedInfo> relatedInfoList) {
+        validateBenefitBaseInfos(relatedInfoList);
         int totalAffected = 0;
         for (RelatedInfo relatedInfo : relatedInfoList) {
             totalAffected += thfxqMapper.insertRelatedInfoTmp(relatedInfo, false);
@@ -1873,6 +1874,7 @@ public class ThfxqServiceImpl implements ThfxqService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int saveOrganEntity(List<RelatedInfo> organEntityList) {
+        validateBenefitBaseInfos(organEntityList);
         int totalAffected = 0;
         for (RelatedInfo organEntity : organEntityList) {
             if ("5".equals(organEntity.getRelatedType())) {
@@ -1885,6 +1887,7 @@ public class ThfxqServiceImpl implements ThfxqService {
 
     @Override
     public int updateOrganEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser) {
+        validateBenefitBaseInfos(organEntityList);
         // 1. 删除同一关联人信息（正式表和临时表）
         thfxqMapper.deleteRelatedInfoByName(clientId, relatedName);
         thfxqMapper.deleteRelatedInfoTmpByName(clientId, relatedName);
@@ -1903,6 +1906,7 @@ public class ThfxqServiceImpl implements ThfxqService {
     @Transactional(rollbackFor = Exception.class)
     public int updateBenefitInfo(RelatedInfo benefitInfo) {
         prepareBenefit(benefitInfo, true);
+        validateBenefitBaseInfo(benefitInfo);
         int deleted = thfxqMapper.deleteBenefitInfoTmp(benefitInfo.getClientId(), benefitInfo.getRelatedId())
                 + thfxqMapper.deleteBenefitInfo(benefitInfo.getClientId(), benefitInfo.getRelatedId());
         if (deleted == 0) {
@@ -1910,6 +1914,27 @@ public class ThfxqServiceImpl implements ThfxqService {
         }
         // 沿用弹窗提交写临时表的方式；后续客户保存再转主表，人员ID保持不变。
         return thfxqMapper.insertRelatedInfoTmp(benefitInfo, true);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> saveBenefitBaseInfo(RelatedInfo baseInfo) {
+        prepareBenefitBaseInfo(baseInfo);
+        List<RelatedInfo> rows = thfxqMapper.selectRelatedInfo(baseInfo.getClientId(), "5", null);
+        validateBenefitBaseSupplement(rows, baseInfo);
+        boolean persisted = !rows.isEmpty();
+        if (persisted) {
+            thfxqMapper.updateBenefitBaseInfo(baseInfo);
+            thfxqMapper.updateBenefitBaseInfoTmp(baseInfo);
+        }
+        Map<String, String> savedBase = new LinkedHashMap<>();
+        savedBase.put("companyType", baseInfo.getCompanyType());
+        savedBase.put("boType", baseInfo.getBoType());
+        savedBase.put("fullInfoFlag", baseInfo.getFullInfoFlag());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("persisted", persisted);
+        result.put("baseInfo", savedBase);
+        return result;
     }
 
     @Override
@@ -1932,6 +1957,57 @@ public class ThfxqServiceImpl implements ThfxqService {
             throw new IllegalArgumentException("已存在主体名称为“" + benefitInfo.getRelatedName() + "”的【受益所有人】信息，请勿重复添加！");
         }
         benefitInfo.setRelatedId(null);
+    }
+
+    private boolean hasBenefitBaseInfo(RelatedInfo benefitInfo) {
+        return StringUtils.hasText(benefitInfo.getCompanyType()) && StringUtils.hasText(benefitInfo.getBoType());
+    }
+
+    private void validateBenefitBaseInfo(RelatedInfo benefitInfo) {
+        if (!hasBenefitBaseInfo(benefitInfo)) {
+            throw new IllegalArgumentException("请清除浏览器缓存后再进行尝试");
+        }
+    }
+
+    private void validateBenefitBaseInfos(List<RelatedInfo> relatedInfoList) {
+        for (RelatedInfo relatedInfo : relatedInfoList) {
+            if ("5".equals(relatedInfo.getRelatedType())) {
+                validateBenefitBaseInfo(relatedInfo);
+            }
+        }
+    }
+
+    private void prepareBenefitBaseInfo(RelatedInfo baseInfo) {
+        if (baseInfo == null || !StringUtils.hasText(baseInfo.getClientId())) {
+            throw new IllegalArgumentException("客户号不能为空");
+        }
+        if (!StringUtils.hasText(baseInfo.getCompanyType())) {
+            throw new IllegalArgumentException("请选择企业性质");
+        }
+        baseInfo.setClientId(baseInfo.getClientId().trim());
+        baseInfo.setCompanyType(baseInfo.getCompanyType().trim());
+        baseInfo.setFullInfoFlag(baseInfo.getFullInfoFlag() == null ? "" : baseInfo.getFullInfoFlag().trim());
+        if (!Arrays.asList("", "01", "02").contains(baseInfo.getFullInfoFlag())) {
+            throw new IllegalArgumentException("客户信息披露情况不正确");
+        }
+        char prefix = baseInfo.getCompanyType().charAt(0);
+        baseInfo.setBoType(prefix >= '1' && prefix <= '6' ? "1" : "2");
+    }
+
+    private void validateBenefitBaseSupplement(List<RelatedInfo> rows, RelatedInfo baseInfo) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        if (rows.stream().allMatch(this::hasBenefitBaseInfo)) {
+            throw new IllegalArgumentException("基础信息已完整，如需编辑，请先删除当前所有受益人");
+        }
+        for (RelatedInfo row : rows) {
+            if (hasBenefitBaseInfo(row) &&
+                    (!row.getCompanyType().trim().equals(baseInfo.getCompanyType()) ||
+                     !(row.getFullInfoFlag() == null ? "" : row.getFullInfoFlag().trim()).equals(baseInfo.getFullInfoFlag()))) {
+                throw new IllegalArgumentException("补录须沿用已有受益人保存的基础信息，请刷新页面后重试");
+            }
+        }
     }
 
     private void prepareBenefit(RelatedInfo benefitInfo, boolean editing) {

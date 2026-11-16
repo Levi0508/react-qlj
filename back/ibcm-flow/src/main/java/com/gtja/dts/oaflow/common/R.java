@@ -116,6 +116,10 @@ public class R<T> implements Serializable {
         return this.msg;
     }
 
+    public String getMessage() {
+        return this.msg;
+    }
+
     public void setCode(final int code) {
         this.code = code;
     }

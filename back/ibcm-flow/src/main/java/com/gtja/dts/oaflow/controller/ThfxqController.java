@@ -160,7 +160,7 @@ public class ThfxqController {
             return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
             log.error("保存关联人信息失败", e);
-            return R.fail("保存关联人信息失败: " + e.getMessage());
+            return R.fail(e instanceof IllegalArgumentException ? e.getMessage() : "保存关联人信息失败: " + e.getMessage());
         }
     }
 
@@ -193,7 +193,7 @@ public class ThfxqController {
             return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
             log.error("保存关联主体失败", e);
-            return R.fail("保存关联主体失败: " + e.getMessage());
+            return R.fail(e instanceof IllegalArgumentException ? e.getMessage() : "保存关联主体失败: " + e.getMessage());
         }
     }
 
@@ -209,7 +209,7 @@ public class ThfxqController {
             return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
             log.error("更新关联主体失败", e);
-            return R.fail("更新关联主体失败: " + e.getMessage());
+            return R.fail(e instanceof IllegalArgumentException ? e.getMessage() : "更新关联主体失败: " + e.getMessage());
         }
     }
 
@@ -220,7 +220,17 @@ public class ThfxqController {
             return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
             log.error("更新受益所有人失败", e);
-            return R.fail("更新受益所有人失败: " + e.getMessage());
+            return R.fail(e instanceof IllegalArgumentException ? e.getMessage() : "更新受益所有人失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/saveBenefitBaseInfo")
+    public R<Map<String, Object>> saveBenefitBaseInfo(@RequestBody RelatedInfo baseInfo) {
+        try {
+            return R.data(ithfxqService.saveBenefitBaseInfo(baseInfo));
+        } catch (Exception e) {
+            log.error("保存受益人基础信息失败", e);
+            return R.fail(e instanceof IllegalArgumentException ? e.getMessage() : "保存受益人基础信息失败: " + e.getMessage());
         }
     }
 

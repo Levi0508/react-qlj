@@ -9,6 +9,7 @@ import com.gtja.dts.oaflow.pojo.vo.thfxq.UpdateClientStatusRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ThfxqService {
 
@@ -145,6 +146,8 @@ public interface ThfxqService {
     int updateOrganEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser);
 
     int updateBenefitInfo(RelatedInfo benefitInfo);
+
+    Map<String, Object> saveBenefitBaseInfo(RelatedInfo baseInfo);
 
     int updateRelatedEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser);
 

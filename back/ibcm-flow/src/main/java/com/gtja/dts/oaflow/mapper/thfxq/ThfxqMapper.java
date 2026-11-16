@@ -40,8 +40,14 @@ public interface ThfxqMapper {
      * @param relatedType
      * @return
      */
-    @Select("select a.* from thjs.t_th_relat_info a where a.client_id = #{clientId} and a.related_type = #{relatedType} and (a.data_status = #{dataType} or #{dataType} is null) union all select b.* from thjs.t_th_relat_info_tmp b where b.client_id = #{clientId} and b.related_type = #{relatedType}")
+    @Select("select a.* from thjs.t_th_relat_info a where a.client_id = #{clientId} and a.related_type = #{relatedType} and (a.related_type = '5' or a.data_status = #{dataType, jdbcType=VARCHAR} or #{dataType, jdbcType=VARCHAR} is null) union all select b.* from thjs.t_th_relat_info_tmp b where b.client_id = #{clientId} and b.related_type = #{relatedType}")
     List<RelatedInfo> selectRelatedInfo(@Param("clientId") String clientId, @Param("relatedType") String relatedType, @Param("dataType") String dataType);
+
+    @Update("update thjs.t_th_relat_info set COMPANY_TYPE = #{companyType, jdbcType=VARCHAR}, BO_TYPE = #{boType, jdbcType=VARCHAR}, FULL_INFO_FLAG = #{fullInfoFlag, jdbcType=VARCHAR} where CLIENT_ID = #{clientId} and RELATED_TYPE = '5'")
+    int updateBenefitBaseInfo(RelatedInfo baseInfo);
+
+    @Update("update thjs.t_th_relat_info_tmp set COMPANY_TYPE = #{companyType, jdbcType=VARCHAR}, BO_TYPE = #{boType, jdbcType=VARCHAR}, FULL_INFO_FLAG = #{fullInfoFlag, jdbcType=VARCHAR} where CLIENT_ID = #{clientId} and RELATED_TYPE = '5'")
+    int updateBenefitBaseInfoTmp(RelatedInfo baseInfo);
 
     /**
      * 通过clientId和fileTypeNo查询客户附件信息
