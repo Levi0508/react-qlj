@@ -18,6 +18,14 @@ export default {
   async saveBenefitInfo(data) {
     return this.saveOrganEntity([{ ...data, relatedType: '5', organFlag: '0' }]);
   },
+  async saveBenefitBaseInfo(data) {
+    return await request({
+      url: 'thfxq/saveBenefitBaseInfo',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data
+    });
+  },
   async updateBenefitInfo(data) {
     return await request({
       url: 'thfxq/updateBenefitInfo',

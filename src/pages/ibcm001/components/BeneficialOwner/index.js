@@ -6,6 +6,7 @@ import services from '../../services';
 import RelatedPerson from '../RelatedPerson';
 import {
   normalizeRelatedInfo, relatedInfoPayload, getBenefitBase, getBenefitBoType,
+  hasBenefitBaseInfo, needsBenefitBaseSupplement,
   orderedBenefitCompanies, benefitBaseFields, benefitFields, benefitValue,
   benefitRecordErrors, newBenefitDraft, normalizeBnfTypeSelection
 } from '../../utils/beneficiary';
@@ -29,7 +30,7 @@ const formGroups = [
 ];
 const formSpans = { bnf_type: 24, actctrltype: 24, actotherforms: 24, seniormgrpos: 16, seniormgrposcn: 16 };
 const loadRows = response => {
-  if (!response || !response.success) throw new Error((response && response.message) || '受益人查询失败');
+  if (!response || !response.success) throw new Error((response && (response.msg || response.message)) || '受益人查询失败');
   const rows = typeof response.data === 'string' ? JSON.parse(response.data || '[]') : (response.data || []);
   return rows.map(normalizeRelatedInfo);
 };
@@ -41,23 +42,28 @@ function BeneficialOwner(props) {
   const [base, setBase] = useState(() => getBenefitBase(relatedInfo));
   const [baseVisible, setBaseVisible] = useState(false);
   const [baseDraft, setBaseDraft] = useState({});
+  const [baseSaving, setBaseSaving] = useState(false);
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('add');
   const [draft, setDraft] = useState(() => newBenefitDraft());
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [listLoading, setListLoading] = useState(false);
+  const needsSupplement = needsBenefitBaseSupplement(rows);
+  const existingBaseRow = rows.find(hasBenefitBaseInfo);
+  const existingBase = existingBaseRow ? getBenefitBase([existingBaseRow]) : null;
 
   useEffect(() => {
     setRows(relatedInfo);
     setBase(getBenefitBase(relatedInfo));
     setVisible(false);
     setBaseVisible(false);
+    if (clientId) refresh().catch(error => message.error(error.message || '受益人加载失败'));
   }, [clientId]);
 
   useEffect(() => {
     setRows(relatedInfo);
-    setBase(current => current || getBenefitBase(relatedInfo));
+    setBase(current => relatedInfo.length ? getBenefitBase(relatedInfo) : current);
   }, [relatedInfo]);
 
   const refresh = async () => {
@@ -65,7 +71,7 @@ function BeneficialOwner(props) {
     try {
       const latest = loadRows(await services.selectBenefitInfo({ clientId }));
       setRows(latest);
-      setBase(current => current || getBenefitBase(latest));
+      setBase(current => latest.length ? getBenefitBase(latest) : current);
       if (onUpdate) onUpdate({ relatedType: '5', data: latest });
       return latest;
     } finally {
@@ -74,10 +80,36 @@ function BeneficialOwner(props) {
   };
 
   const changeBase = () => {
-    if (rows.length) { message.warning('请先删除当前所有受益人，才能进行编辑'); return; }
-    setBaseDraft({ company_type: '', bo_type: '', full_info_flag: '', ...base });
+    if (rows.length && !needsSupplement) { message.warning('请先删除当前所有受益人，才能进行编辑'); return; }
+    setBaseDraft({ company_type: '', bo_type: '', full_info_flag: '', ...(existingBase || base) });
     setErrors({});
     setBaseVisible(true);
+  };
+
+  const saveBase = async () => {
+    if (baseSaving) return;
+    if (!baseDraft.company_type) { setErrors({ company_type: '请选择企业性质' }); return; }
+    const values = { ...baseDraft, bo_type: getBenefitBoType(baseDraft.company_type) };
+    if (!rows.length) {
+      setBase(values);
+      setBaseVisible(false);
+      message.success('基础信息已暂存，将随受益人提交一起保存');
+      return;
+    }
+    if (!needsSupplement) { message.warning('请先删除当前所有受益人，才能进行编辑'); return; }
+    setBaseSaving(true);
+    try {
+      const result = await services.saveBenefitBaseInfo({
+        clientId, companyType: values.company_type, boType: values.bo_type, fullInfoFlag: values.full_info_flag
+      });
+      if (!result || !result.success) throw new Error((result && (result.msg || result.message)) || '基础信息保存失败');
+      const savedBase = getBenefitBase([normalizeRelatedInfo(result.data.baseInfo)]);
+      await refresh();
+      setBase(savedBase);
+      setBaseVisible(false);
+      message.success(result.data.persisted ? '受益人基础信息已保存' : '基础信息已暂存，将随受益人提交一起保存');
+    } catch (error) { message.error(error.message || '基础信息保存失败'); }
+    finally { setBaseSaving(false); }
   };
 
   const deleteBase = () => {
@@ -85,14 +117,22 @@ function BeneficialOwner(props) {
     Modal.confirm({ title: '确认删除当前受益人基础信息？', onOk: () => setBase(null) });
   };
 
+  const requireBase = (records, sharedBase) => {
+    if (needsBenefitBaseSupplement(records)) { message.warning('请先补录受益人基础信息'); return false; }
+    if (!hasBenefitBaseInfo(sharedBase)) { message.warning('请先添加受益人基础信息'); return false; }
+    return true;
+  };
+
   const open = async record => {
-    if (!base) { message.warning('请先添加受益人基础信息'); return; }
+    if (!requireBase(rows, base)) return;
     setBusy(true);
     try {
       const latest = await refresh();
+      const latestBase = latest.length ? getBenefitBase(latest) : base;
+      if (!requireBase(latest, latestBase)) return;
       const current = record ? latest.find(item => String(item.related_id) === String(record.related_id)) : null;
       if (record && !current) { message.warning('该受益人已不存在，请重新选择'); return; }
-      setDraft(newBenefitDraft({ ...(current || {}), ...base }));
+      setDraft(newBenefitDraft({ ...(current || {}), ...latestBase }));
       setMode(record ? 'edit' : 'add');
       setErrors({});
       setVisible(true);
@@ -120,6 +160,7 @@ function BeneficialOwner(props) {
 
   const submit = async nextEntry => {
     if (busy) return;
+    if (!requireBase(rows, base)) return;
     const values = { ...draft, ...base };
     const found = benefitRecordErrors(values, special, base);
     if (found.length) {
@@ -137,13 +178,15 @@ function BeneficialOwner(props) {
       const result = mode === 'add'
         ? await services.saveBenefitInfo(payload)
         : await services.updateBenefitInfo(payload);
-      if (!result || !result.success) throw new Error((result && result.message) || '保存失败');
+      if (!result || !result.success) throw new Error((result && (result.msg || result.message)) || '保存失败');
       if (!(Number(result.data) > 0)) throw new Error('未保存任何受益人记录');
       message.success(mode === 'add' ? '添加成功' : '修改成功');
       setVisible(false);
-      await refresh();
+      const latest = await refresh();
       if (nextEntry) {
-        setDraft(newBenefitDraft(base));
+        const latestBase = latest.length ? getBenefitBase(latest) : base;
+        if (!requireBase(latest, latestBase)) return;
+        setDraft(newBenefitDraft(latestBase));
         setMode('add');
         setErrors({});
         setVisible(true);
@@ -231,10 +274,12 @@ function BeneficialOwner(props) {
 
   return <Card id={props.id || 'beneficialOwner'} className="box-card" title="受益所有人"
     extra={editable && <div className={styles.actions}>
-      {!base && <Button size="small" onClick={changeBase}>基础信息添加</Button>}
+      {(needsSupplement || !base) && <Button size="small" onClick={changeBase}>
+        {needsSupplement ? '补录受益人基础信息' : '基础信息添加'}
+      </Button>}
       <Button type="primary" size="small" loading={busy} onClick={() => open()}>添加</Button>
     </div>}>
-    {base && <Card size="small" title="受益人基础信息" className={styles.baseCard}
+    {base && !needsSupplement && <Card size="small" title="受益人基础信息" className={styles.baseCard}
       extra={editable && <span><Button type="link" size="small" onClick={deleteBase}>删除</Button>
         <Button type="link" size="small" onClick={changeBase}>编辑</Button></span>}>
       <Row gutter={24}>{benefitBaseFields.map(field => <Col span={8} key={field.key}>
@@ -255,16 +300,13 @@ function BeneficialOwner(props) {
     <RelatedPerson {...props} relatedInfo={[]} relatedType="5" editable={false} attachmentOnly />
 
     <Modal title="受益人基础信息" visible={baseVisible} width="80%" maskClosable={false}
-      onCancel={() => setBaseVisible(false)} onOk={() => {
-        if (!baseDraft.company_type) { setErrors({ company_type: '请选择企业性质' }); return; }
-        setBase({ ...baseDraft, bo_type: getBenefitBoType(baseDraft.company_type) });
-        setBaseVisible(false);
-        message.success('基础信息已暂存，将随受益人提交一起保存');
-      }}>
+      confirmLoading={baseSaving} cancelButtonProps={{ disabled: baseSaving }}
+      onCancel={() => { if (!baseSaving) setBaseVisible(false); }} onOk={saveBase}>
+      {existingBase && <div>已有受益人保存过基础信息，本次沿用现有信息补齐其他记录。</div>}
       <Form layout="vertical">
         <Row gutter={24}><Col span={12}>
           <Form.Item label="企业性质" required validateStatus={errors.company_type ? 'error' : undefined} help={errors.company_type}>
-            <Select value={baseDraft.company_type || undefined} showSearch optionFilterProp="children" allowClear
+            <Select value={baseDraft.company_type || undefined} showSearch optionFilterProp="children" allowClear disabled={!!existingBase}
               style={{ width: '100%' }} onChange={value => {
                 setBaseDraft({ ...baseDraft, company_type: value || '', bo_type: getBenefitBoType(value) });
                 setErrors({});
@@ -280,9 +322,10 @@ function BeneficialOwner(props) {
         </Form.Item></Col></Row>
         <div className={styles.warning}>如适用才勾选，请谨慎选择</div>
         {['01', '02'].map(value => <div key={value} className={styles.radio}>
-          <Radio checked={baseDraft.full_info_flag === value} onClick={() => setBaseDraft({
-            ...baseDraft, full_info_flag: baseDraft.full_info_flag === value ? '' : value
-          })}>{benefitValue({ full_info_flag: value }, { key: 'full_info_flag' }, dictData)}</Radio>
+          <Radio checked={baseDraft.full_info_flag === value} disabled={!!existingBase} onClick={() => {
+            if (existingBase) return;
+            setBaseDraft({ ...baseDraft, full_info_flag: baseDraft.full_info_flag === value ? '' : value });
+          }}>{benefitValue({ full_info_flag: value }, { key: 'full_info_flag' }, dictData)}</Radio>
         </div>)}
         {baseDraft.full_info_flag === '01' && <div className={styles.warning}>
           <div>1、国有企业为经官方信息验证并确认属于国有独资公司、国有控股公司、全民所有制企业。</div>

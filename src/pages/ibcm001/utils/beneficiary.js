@@ -57,9 +57,13 @@ export function relatedInfoPayload(row) {
 }
 
 export const getBenefitBoType = companyType => companyType ? (/^[1-6]/.test(String(companyType)) ? '1' : '2') : '';
+export const hasBenefitBaseInfo = base => !!(base &&
+  String(base.company_type || '').trim() && String(base.bo_type || '').trim());
+export const needsBenefitBaseSupplement = rows => rows.some(item => !hasBenefitBaseInfo(item));
 export const getBenefitBase = rows => {
-  const row = rows.find(item => item.company_type || item.bo_type || item.full_info_flag);
-  return row ? { company_type: row.company_type || '', bo_type: row.bo_type || '',
+  if (needsBenefitBaseSupplement(rows)) return null;
+  const row = rows.find(hasBenefitBaseInfo);
+  return row ? { company_type: row.company_type, bo_type: getBenefitBoType(row.company_type),
     full_info_flag: row.full_info_flag || '' } : null;
 };
 export const orderedBenefitCompanies = dict => ['A', 'B', 'I']
