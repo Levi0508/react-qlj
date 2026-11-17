@@ -91,7 +91,7 @@ export function benefitValue(item, field, dictData) {
 }
 
 export function benefitFields(item, isSpecial = false, base = item) {
-  const required = true;
+  const required = !isSpecial;
   const identityRequired = !isSpecial;
   const codes = toBenefitCodes(item.bnf_type);
   const has = types => types.some(code => codes.includes(code));
@@ -158,8 +158,8 @@ const validDate = value => {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 
-export function benefitRecordErrors(item, isSpecial, base = item, forList = false) {
-  if (isSpecial && forList) return empty(item.related_name) ? [{ field: 'related_name', message: '姓名不能为空' }] : [];
+export function benefitRecordErrors(item, isSpecial, base = item) {
+  if (isSpecial) return empty(item.related_name) ? [{ field: 'related_name', message: '姓名不能为空' }] : [];
   const errors = [];
   benefitFields(item, isSpecial, base).forEach(field => {
     const value = item[field.key];
@@ -188,7 +188,7 @@ export function benefitListErrors(rows, isSpecial, sharedBase = getBenefitBase(r
     if (!sharedBase || !sharedBase.company_type) errors.push('受益人基础信息的企业性质不能为空');
     if (!sharedBase || !sharedBase.bo_type) errors.push('受益人基础信息的受益所有人是否需识别不能为空');
   }
-  rows.forEach((row, index) => benefitRecordErrors(row, isSpecial, sharedBase || {}, true).forEach(error =>
+  rows.forEach((row, index) => benefitRecordErrors(row, isSpecial, sharedBase || {}).forEach(error =>
     errors.push('第' + (index + 1) + '位受益所有人' + (row.related_name || '') + '：' + error.message)));
   return errors;
 }
