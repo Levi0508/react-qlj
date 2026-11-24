@@ -90,6 +90,12 @@ auto:
   flowVerBj: '1'
   flowVerSz: '1'
 
+# 业务定时任务总开关。true：按原逻辑执行；false：不注册、不执行。
+# 未配置时按 true 处理。备份服务器设为 false，避免与生产重复发邮件、下发流程。
+# 债券预警在总开关为 true 时，仍受上面的 auto.state 控制。
+schedule:
+  enabled: true
+
 ftp:
   port: 8080
   server: 10.181.135.25 #10.181.135.25

@@ -7,10 +7,12 @@ import com.gtja.dts.oaflow.job.thfxq.SelfCheckFlowEmailScheduler;
 import com.gtja.dts.oaflow.job.thfxq.SelfCheckFlowScheduler;
 import com.gtja.dts.oaflow.job.thfxq.SelfCheckReminderEmailScheduler;
 import org.quartz.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration("autoEmailQuartzConfig")
+@ConditionalOnProperty(prefix = "schedule", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class QuartzConfig {
 
     @Bean
