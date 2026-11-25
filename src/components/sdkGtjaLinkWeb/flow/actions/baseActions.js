@@ -13,7 +13,6 @@ import linkRequest from '../../utils/linkRequest';
 import utils from '../../utils/utils';
 import services from '../../services';
 import store from '@/store';
-import { benefitListErrors } from '@/pages/ibcm001/utils/beneficiary';
 
 // personType转taskType
 const personTypeToTaskType = {
@@ -1827,6 +1826,13 @@ const baseActions = {
                 // 构建错误消息数组
                 const errorMessages = [];
 
+                const appendBeneficialOwnerErrors = () => {
+                    const validate = window[`validateBeneficialOwners_${flowCode}`];
+                    const errors = validate ? validate(isSpecial) : ['受益人基础信息加载失败，请刷新页面重试'];
+                    errors.forEach(msg => errorMessages.push({
+                        type: 'relatedPerson', subType: 'beneficialOwner', label: '受益所有人', msg
+                    }));
+                };
 
                 // 根据反洗钱特殊情况选择校验逻辑
                 if (isSpecial === '1') {
@@ -1878,10 +1884,6 @@ const baseActions = {
 
                     // 校验单个关联人记录的必填字段
                     const validateRelatedPersonRecord = (record, typeLabel, relatedType) => {
-                        if ((flowCode === 'IBCM001' || flowCode === 'IBCM004') && relatedType === '5') {
-                            const errors = benefitListErrors([record], isSpecial === '1');
-                            return errors.length ? errors : null;
-                        }
                         const errors = [];
                         const relatedName = record.related_name || record.relatedName;
                         const organFlag = record.organ_flag || record.organFlag;
@@ -1985,16 +1987,7 @@ const baseActions = {
                             }
 
                             // 受益所有人 (relatedType='5') - 只需校验姓名是否必填
-                            if (!relatedInfo.beneficialOwner || relatedInfo.beneficialOwner.length === 0) {
-                                errorMessages.push({ type: 'relatedPerson', subType: 'beneficialOwner', label: '受益所有人', msg: '请添加"受益所有人"信息' });
-                            } else {
-                                relatedInfo.beneficialOwner.forEach(record => {
-                                    const relatedName = record.related_name || record.relatedName;
-                                    if (!relatedName) {
-                                        errorMessages.push({ type: 'relatedPerson', subType: 'beneficialOwner', label: '受益所有人', msg: `受益所有人"${relatedName || '未命名'}"的"姓名"不能为空` });
-                                    }
-                                });
-                            }
+                            appendBeneficialOwnerErrors();
 
                             // 控股股东 (relatedType='2') - 反洗钱特殊情况为"是"时无需校验
                             // 实际控制人 (relatedType='3') - 反洗钱特殊情况为"是"时无需校验
@@ -2115,10 +2108,6 @@ const baseActions = {
 
                         // 校验单个关联人记录的必填字段
                         const validateRelatedPersonRecord = (record, typeLabel, relatedType) => {
-                            if ((flowCode === 'IBCM001' || flowCode === 'IBCM004') && relatedType === '5') {
-                                const errors = benefitListErrors([record], isSpecial === '1');
-                                return errors.length ? errors : null;
-                            }
                             const errors = [];
                             const relatedName = record.related_name || record.relatedName;
                             const organFlag = record.organ_flag || record.organFlag;
@@ -2219,19 +2208,8 @@ const baseActions = {
                                 });
                             }
 
-                            // 受益所有人必填 (relatedType='5')
-                            if (!relatedInfo.beneficialOwner || relatedInfo.beneficialOwner.length === 0) {
-                                errorMessages.push({ type: 'relatedPerson', subType: 'beneficialOwner', label: '受益所有人', msg: '请添加"受益所有人"信息' });
-                            } else {
-                                relatedInfo.beneficialOwner.forEach(record => {
-                                    const errors = validateRelatedPersonRecord(record, '受益所有人', '5');
-                                    if (errors) {
-                                        errors.forEach(error => {
-                                            errorMessages.push({ type: 'relatedPerson', subType: 'beneficialOwner', label: '受益所有人', msg: error });
-                                        });
-                                    }
-                                });
-                            }
+                            // 按是否需要识别校验受益所有人 (relatedType='5')
+                            appendBeneficialOwnerErrors();
 
                             // 控股股东 (relatedType='2') - 可选，但如果存在则校验内部字段
                             if (relatedInfo.controllingShareholder && relatedInfo.controllingShareholder.length > 0) {

@@ -19,6 +19,8 @@ const formGroups = [
   ['birthday', 'mobno1', 'mobno2'],
   ['address']
 ];
+const cardPersonalOrder = formGroups.flat().flatMap(key =>
+  key === 'id_validity' ? ['id_begindate', 'id_enddate'] : [key]);
 const formSpans = { bnf_type: 24, actctrltype: 24, actotherforms: 24, seniormgrpos: 16, seniormgrposcn: 16 };
 const loadRows = response => {
   if (!response || !response.success) throw new Error((response && (response.msg || response.message)) || '受益人查询失败');
@@ -215,7 +217,11 @@ function BeneficialOwner(props) {
       value={value === '' ? undefined : value} onChange={number => changeField(field, number)} style={{ width: '100%' }} />;
     if (field.type === 'select' || field.type === 'multi') {
       let list = dictData[field.dict] || [];
-      if (field.key === 'bnf_type') list = list.filter(item => String(item.k).startsWith('N' + String((base || {}).company_type || '').charAt(0)));
+      if (field.key === 'bnf_type') {
+        const prefix = 'N' + String(base?.company_type || '').charAt(0);
+        list = list.filter(item => String(item.k).startsWith(prefix))
+          .sort((a, b) => String(a.k).localeCompare(String(b.k), 'en', { numeric: true }));
+      }
       if (field.key === 'seniormgrpos' && (draft.bnf_type.includes('NA4') || draft.bnf_type.includes('NB4'))) {
         const allowed = draft.bnf_type.includes('NA4') ? ['10', '11', '12', '13', '15'] : ['14', '15'];
         list = allowed.map(code => list.find(item => String(item.k) === code)).filter(Boolean);
@@ -246,6 +252,20 @@ function BeneficialOwner(props) {
       validateStatus={errors[field.key] ? 'error' : undefined} help={errors[field.key]}>
       {renderControl(field)}
     </Form.Item>;
+  };
+
+  const getCardFields = item => {
+    const fields = benefitFields(item, special, base || {}, dictData);
+    const fieldsByKey = new Map(fields.map(field => [field.key, field]));
+    const order = new Set([
+      'bnf_type',
+      ...benefitOwnershipSections(item.bnf_type).flatMap(group => group.fields),
+      ...fields.map(field => field.key).filter(key => !cardPersonalOrder.includes(key)),
+      ...cardPersonalOrder
+    ]);
+    order.delete('related_name');
+    if (!item.bnf_type?.length) order.delete('bnf_type');
+    return Array.from(order, key => fieldsByKey.get(key)).filter(Boolean);
   };
 
   const columns = [
@@ -283,8 +303,7 @@ function BeneficialOwner(props) {
       title={<span>{item.related_name || '-'} <Tag color="green">自然人</Tag></span>}
       extra={editable && <span><Button type="link" size="small" onClick={() => remove(item)}>删除</Button>
         <Button type="link" size="small" loading={busy} onClick={() => open(item)}>编辑</Button></span>}>
-      <Row gutter={24}>{benefitFields(item, special, base || {}, dictData).filter(field =>
-        field.key !== 'related_name' && (field.key !== 'bnf_type' || item.bnf_type?.length > 0)).map(field =>
+      <Row gutter={24}>{getCardFields(item).map(field =>
         <Col span={field.wide ? 24 : 8} key={field.key} className={styles.displayField}>
           <span className={styles.label}>{field.label}：</span><span className={styles.value}>{benefitValue(item, field, dictData)}</span>
         </Col>)}</Row>

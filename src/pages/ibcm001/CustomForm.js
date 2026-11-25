@@ -883,6 +883,7 @@ class CustomForm extends React.Component {
     window[`getRelatedInfo_${flowCode}`] = () => {
       return this.state.relatedInfo;
     };
+    window[`validateBeneficialOwners_${flowCode}`] = this.getBeneficialOwnerErrors;
     window[`validateForm_${flowCode}`] = this.validateIBCM001Form;
     window[`setBasicInfoRequired_${flowCode}`] = this.setBasicInfoRequired;
     window[`scrollToElement_${flowCode}`] = this.scrollToElement;
@@ -955,6 +956,7 @@ class CustomForm extends React.Component {
     // 清理带命名空间的全局函数
     delete window[`getRelatedInfo_${flowCode}`];
     delete window[`validateForm_${flowCode}`];
+    delete window[`validateBeneficialOwners_${flowCode}`];
     delete window[`setBasicInfoRequired_${flowCode}`];
     delete window[`scrollToElement_${flowCode}`];
     delete window[`switchToApprovalTab_${flowCode}`];
@@ -1085,6 +1087,12 @@ class CustomForm extends React.Component {
     return result;
   }
 
+  getBeneficialOwnerErrors = (isSpecial) => {
+    const { relatedInfo, benefitBase, dictData } = this.state;
+    return benefitListErrors(relatedInfo.beneficialOwner || [], isSpecial === '1',
+      benefitBase, { forSubmit: true, dictData });
+  };
+
   /**
    * IBCM001流程提交前校验
    * @returns {Object} { valid: boolean, errors: Array, scrollTo: string, fieldErrors: Object }
@@ -1146,8 +1154,7 @@ class CustomForm extends React.Component {
 
     // 校验受益所有人内部字段
     const validateBeneficialOwners = () => {
-      const errors = benefitListErrors(relatedInfo.beneficialOwner || [], isSpecial === '1',
-        this.state.benefitBase, { forSubmit: true, dictData: this.state.dictData });
+      const errors = this.getBeneficialOwnerErrors(isSpecial);
       if (errors.length) {
         result.formErrors.relatedPerson.push({ type: 'beneficialOwner', label: '受益所有人' });
         result.errors.push(...errors);
