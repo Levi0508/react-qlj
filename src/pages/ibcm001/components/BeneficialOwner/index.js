@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Tag, Table, Button, Modal, Form, Input, Select, DatePicker, Radio, InputNumber, message, Spin } from 'antd';
+import { AutoComplete, Card, Row, Col, Tag, Table, Button, Modal, Form, Input, Select, DatePicker, Radio, InputNumber, message, Spin } from 'antd';
 import moment from 'moment';
 import store from '@/store';
 import services from '../../services';
@@ -21,6 +21,8 @@ const formGroups = [
 ];
 const cardPersonalOrder = formGroups.flat().flatMap(key =>
   key === 'id_validity' ? ['id_begindate', 'id_enddate'] : [key]);
+const prefillFields = ['related_name', 'id_type', 'id_no', 'id_begindate', 'id_enddate',
+  'nationality', 'birthday', 'gender', 'mobno1', 'mobno2', 'address'];
 const formSpans = { bnf_type: 24, actctrltype: 24, actotherforms: 24, seniormgrpos: 16, seniormgrposcn: 16 };
 const loadRows = response => {
   if (!response || !response.success) throw new Error((response && (response.msg || response.message)) || '受益人查询失败');
@@ -42,10 +44,13 @@ function BeneficialOwner(props) {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [listLoading, setListLoading] = useState(false);
+  const [existingPeople, setExistingPeople] = useState([]);
+  const [nameLoading, setNameLoading] = useState(false);
   const needsSupplement = base === null && rows.length > 0;
 
   useEffect(() => {
     setRows(relatedInfo);
+    setExistingPeople([]);
     setVisible(false);
     setBaseVisible(false);
     if (clientId) refresh().catch(error => message.error(error.message || '受益人加载失败'));
@@ -134,6 +139,41 @@ function BeneficialOwner(props) {
     finally { setBusy(false); }
   };
 
+  const loadExistingPeople = async () => {
+    if (nameLoading) return;
+    setNameLoading(true);
+    try {
+      const people = loadRows(await services.selectOrganEntity({ clientId, organFlag: '0' }));
+      const byName = new Map();
+      people.forEach(person => {
+        if (!person.related_name || !['1', '2', '3', '4'].includes(String(person.related_type))) return;
+        const existing = byName.get(person.related_name);
+        if (!existing) {
+          byName.set(person.related_name, person);
+        } else if (!existing.mobno1 && person.mobno1) {
+          byName.set(person.related_name, { ...existing, mobno1: person.mobno1 });
+        }
+      });
+      setExistingPeople(Array.from(byName.values()));
+    } catch (error) {
+      message.warning('已有自然人查询失败，可以手动输入姓名');
+    } finally {
+      setNameLoading(false);
+    }
+  };
+
+  const selectExistingPerson = name => {
+    const person = existingPeople.find(row => row.related_name === name);
+    if (!person) return;
+    const values = Object.fromEntries(prefillFields.map(key => [key, person[key] ?? '']));
+    setDraft(current => ({ ...current, ...values }));
+    setErrors(current => {
+      const remaining = { ...current };
+      prefillFields.forEach(key => delete remaining[key]);
+      return remaining;
+    });
+  };
+
   const changeField = (field, value) => {
     setDraft(current => {
       const next = field.key === 'bnf_type' ?
@@ -204,6 +244,13 @@ function BeneficialOwner(props) {
 
   const renderControl = field => {
     const value = draft[field.key];
+    if (field.key === 'related_name' && mode === 'add') {
+      return <AutoComplete size="small" value={value || ''} allowClear
+        dataSource={existingPeople.map(person => person.related_name)}
+        filterOption={(input, option) => option.props.children.toLowerCase().includes(input.toLowerCase())}
+        loading={nameLoading} placeholder="请选择或手动输入姓名" style={{ width: '100%' }}
+        onFocus={loadExistingPeople} onChange={name => changeField(field, name)} onSelect={selectExistingPerson} />;
+    }
     if (field.type === 'date') return <div>
       {field.key !== 'id_begindate' && field.key !== 'id_enddate' &&
         <div className={styles.dateHint}>如需手动填写，请按照“1990-01-01”的格式填写</div>}
