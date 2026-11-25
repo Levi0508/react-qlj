@@ -680,6 +680,7 @@ function RelatedPerson({
                 const updateResponse = await services.updateRelatedEntity({
                     clientId: clientId,
                     relatedName: baseParams.relatedName,
+                    sourceRelatedId: currentRecord.related_id || currentRecord.relatedId,
                     organEntityList: updatedBatchList,
                     createUser: createUser
                 });

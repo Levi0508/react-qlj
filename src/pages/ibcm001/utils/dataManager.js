@@ -1,5 +1,5 @@
 import request001 from '../services';
-import { normalizeRelatedInfo } from './beneficiary';
+import { normalizeRelatedInfo, normalizeBenefitBaseInfo } from './beneficiary';
 
 /**
  * 数据管理器 - 负责所有接口数据的获取和转换
@@ -311,6 +311,14 @@ class DataManager {
         beneficialOwner: []
       };
     }
+  }
+
+  async getBenefitBaseInfo(clientId) {
+    const response = await request001.selectBenefitBaseInfo({ clientId });
+    if (!response?.success) {
+      throw new Error(response?.msg || response?.message || '受益人基础信息加载失败');
+    }
+    return normalizeBenefitBaseInfo(response.data);
   }
 
   /**

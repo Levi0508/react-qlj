@@ -55,6 +55,7 @@ class CustomForm extends React.Component {
       loading: false,
       basicInfo: mockBasicInfo,
       relatedInfo: mockRelatedInfo,
+      benefitBase: undefined,
       attachments: mockAttachments,
       feedback: mockFeedback,
       clientId: null, // 将从formData的CLIENT_ID获取
@@ -241,7 +242,7 @@ class CustomForm extends React.Component {
       return;
     }
 
-    this.setState({ loading: true });
+    this.setState({ loading: true, benefitBase: undefined });
 
     try {
       const targetClientId = clientId || this.state.clientId; // 优先使用传入的clientId
@@ -260,16 +261,18 @@ class CustomForm extends React.Component {
       ]);
 
       // 然后获取依赖basicInfo的数据
-      const [relatedInfo, attachments, feedback, approvalHistory] = await Promise.all([
+      const [relatedInfo, attachments, feedback, approvalHistory, benefitBase] = await Promise.all([
         dataManager.getAllRelatedInfo(targetClientId).catch(() => mockRelatedInfo),
         dataManager.getAllAttachments(targetClientId, basicInfo?.organ_flag || '1').catch(() => mockAttachments),
         dataManager.getFeedback(targetClientId, userId).catch(() => mockFeedback),
-        dataManager.getApprovalHistory(targetClientId).catch(() => ({ latest: [], history: [] }))
+        dataManager.getApprovalHistory(targetClientId).catch(() => ({ latest: [], history: [] })),
+        basicInfo?.organ_flag === '1' ? dataManager.getBenefitBaseInfo(targetClientId).catch(() => undefined) : null
       ]);
 
       this.setState({
         basicInfo,
         relatedInfo,
+        benefitBase,
         attachments,
         feedback,
         dictData,
@@ -433,10 +436,18 @@ class CustomForm extends React.Component {
     this.setState({ attachmentUpdateTime: Date.now() });
   }
 
+  handleBenefitBaseUpdate = benefitBase => this.setState({ benefitBase });
+
   // 关联人信息更新
-  handleRelatedPersonUpdate = (data) => {
+  handleRelatedPersonUpdate = async (data) => {
     const { clientId, relatedInfo } = this.state;
     if (clientId) {
+      if (data?.reloadAllRelatedInfo) {
+        dataManager.clearRelatedInfoCache(clientId);
+        const latest = await dataManager.getAllRelatedInfo(clientId);
+        if (this.state.clientId === clientId) this.setState({ relatedInfo: latest });
+        return latest;
+      }
       // 如果data中包含allRelatedInfo（从reloadAllRelatedInfo方法传递）
       if (data && data.allRelatedInfo) {
         dataManager.clearRelatedInfoCache(clientId);
@@ -537,7 +548,8 @@ class CustomForm extends React.Component {
       completed_cdd: '已开展的反洗钱尽职调查工作', low_risk_explanation: '客户洗钱风险较低的评估说明',
       take_measures: '后续措施'
     };
-    const msgs = isOrgan ? benefitListErrors(beneficialOwner, basicInfo.is_special === '1') : [];
+    const msgs = isOrgan ? benefitListErrors(beneficialOwner, basicInfo.is_special === '1',
+      this.state.benefitBase, { dictData: this.state.dictData }) : [];
     const checkFields = (fields) => fields.forEach(field => {
       if (isEmpty(basicInfo[field])) msgs.push(`请填写“${fieldLabels[field] || field}”`);
     });
@@ -684,9 +696,11 @@ class CustomForm extends React.Component {
         // 2. 直接调用 selectRelatedInfo 获取最新关联人信息（5种类型）
         const relaTypes = ['1', '2', '3', '4', '5'];
         const typeKeys = ['legalRep', 'controllingShareholder', 'actualController', 'authorizedRep', 'beneficialOwner'];
-        const relatedRespList = await Promise.all(
-          relaTypes.map(t => request001.selectRelatedInfo({ clientId, relatedType: t, dataType: '1' }))
-        );
+        const [benefitBase, ...relatedRespList] = await Promise.all([
+          (newBasicInfo || this.state.basicInfo)?.organ_flag === '1' ?
+            dataManager.getBenefitBaseInfo(clientId).catch(() => undefined) : null,
+          ...relaTypes.map(t => request001.selectRelatedInfo({ clientId, relatedType: t, dataType: '1' }))
+        ]);
         const newRelatedInfo = {};
         relaTypes.forEach((t, i) => {
           const resp = relatedRespList[i];
@@ -699,7 +713,7 @@ class CustomForm extends React.Component {
         });
 
         // 3. 更新state并等待React渲染PDFExporter
-        const updates = {};
+        const updates = { benefitBase };
         if (newBasicInfo) updates.basicInfo = newBasicInfo;
         if (Object.keys(newRelatedInfo).length > 0) updates.relatedInfo = newRelatedInfo;
         if (Object.keys(updates).length > 0) {
@@ -1111,9 +1125,6 @@ class CustomForm extends React.Component {
 
     // 校验单个关联人记录的必填字段
     const validateRelatedPersonRecord = (record, typeLabel) => {
-      if (typeLabel === '受益所有人') {
-        return benefitListErrors([record], isSpecial === '1');
-      }
       const errors = [];
       // 获取是否政府部门标志（默认为非政府部门）
       const isGovDept = record.is_government_dept === '1' || record.isGovernmentDept === '1';
@@ -1131,6 +1142,16 @@ class CustomForm extends React.Component {
       }
       
       return errors;
+    };
+
+    // 校验受益所有人内部字段
+    const validateBeneficialOwners = () => {
+      const errors = benefitListErrors(relatedInfo.beneficialOwner || [], isSpecial === '1',
+        this.state.benefitBase, { forSubmit: true, dictData: this.state.dictData });
+      if (errors.length) {
+        result.formErrors.relatedPerson.push({ type: 'beneficialOwner', label: '受益所有人' });
+        result.errors.push(...errors);
+      }
     };
 
     // === 反洗钱特殊情况为"是" ===
@@ -1197,16 +1218,7 @@ class CustomForm extends React.Component {
         }
 
         // 受益所有人
-        if (!relatedInfo.beneficialOwner || relatedInfo.beneficialOwner.length === 0) {
-          result.formErrors.relatedPerson.push({ type: 'beneficialOwner', label: '受益所有人' });
-          result.errors.push('请添加"受益所有人"信息');
-        } else {
-          // 校验受益所有人内部字段
-          relatedInfo.beneficialOwner.forEach(record => {
-            const fieldErrors = validateRelatedPersonRecord(record, '受益所有人');
-            fieldErrors.forEach(error => result.errors.push(error));
-          });
-        }
+        validateBeneficialOwners();
 
         // 控股股东（可选，但如果存在则校验内部字段）
         if (relatedInfo.controllingShareholder && relatedInfo.controllingShareholder.length > 0) {
@@ -1265,17 +1277,8 @@ class CustomForm extends React.Component {
           });
         }
 
-        // 受益所有人必填
-        if (!relatedInfo.beneficialOwner || relatedInfo.beneficialOwner.length === 0) {
-          result.formErrors.relatedPerson.push({ type: 'beneficialOwner', label: '受益所有人' });
-          result.errors.push('请添加"受益所有人"信息');
-        } else {
-          // 校验受益所有人内部字段
-          relatedInfo.beneficialOwner.forEach(record => {
-            const fieldErrors = validateRelatedPersonRecord(record, '受益所有人');
-            fieldErrors.forEach(error => result.errors.push(error));
-          });
-        }
+        // 需要识别时受益所有人必填
+        validateBeneficialOwners();
 
         // 控股股东（可选，但如果存在则校验内部字段）
         if (relatedInfo.controllingShareholder && relatedInfo.controllingShareholder.length > 0) {
@@ -1765,6 +1768,8 @@ class CustomForm extends React.Component {
                             id="beneficialOwner"
                             relatedType="5"
                             relatedInfo={relatedInfo.beneficialOwner || []}
+                            benefitBase={this.state.benefitBase}
+                            onBaseUpdate={this.handleBenefitBaseUpdate}
                             attachments={attachments.beneficialOwner || []}
                             dictData={dictData}
                             clientId={clientId}
@@ -2056,6 +2061,8 @@ class CustomForm extends React.Component {
                           id="beneficialOwner"
                           relatedType="5"
                           relatedInfo={relatedInfo.beneficialOwner || []}
+                          benefitBase={this.state.benefitBase}
+                          onBaseUpdate={this.handleBenefitBaseUpdate}
                           attachments={attachments.beneficialOwner || []}
                           dictData={dictData}
                           clientId={clientId}
@@ -2124,6 +2131,7 @@ class CustomForm extends React.Component {
               relatedInfo3={relatedInfo.actualController || []}
               relatedInfo4={relatedInfo.authorizedRep || []}
               relatedInfo5={relatedInfo.beneficialOwner || []}
+              benefitBase={this.state.benefitBase}
               organFlag={basicInfo?.organ_flag || '1'}
               dictData={dictData}
               visible={true}

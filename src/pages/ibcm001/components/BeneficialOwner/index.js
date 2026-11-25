@@ -5,8 +5,8 @@ import store from '@/store';
 import services from '../../services';
 import RelatedPerson from '../RelatedPerson';
 import {
-  normalizeRelatedInfo, relatedInfoPayload, getBenefitBase, getBenefitBoType,
-  hasBenefitBaseInfo, needsBenefitBaseSupplement,
+  normalizeRelatedInfo, relatedInfoPayload, normalizeBenefitBaseInfo, getBenefitBoType,
+  hasBenefitBaseInfo, benefitOwnershipSections, changeBenefitOwnership,
   orderedBenefitCompanies, benefitBaseFields, benefitFields, benefitValue,
   benefitRecordErrors, newBenefitDraft, normalizeBnfTypeSelection
 } from '../../utils/beneficiary';
@@ -14,15 +14,6 @@ import styles from './index.module.less';
 
 const { Option } = Select;
 const formGroups = [
-  ['bnf_type'],
-  ['acthdrat', 'shareratiostartdate', 'shareratioenddate'],
-  ['actownerprofitratio', 'profitratiostartdate', 'profitratioenddate'],
-  ['actownerprofitratiovote', 'profitratiovotestartdate', 'profitratiovoteenddate'],
-  ['actctrltype'],
-  ['actotherforms'],
-  ['obtainactdate', 'terminationactdate', 'actconuppermarket', 'actconupperentname', 'actconuniscid'],
-  ['seniormgrpos', 'actdailymgmtpostother'],
-  ['seniormgrposcn', 'ownerrightmgmtpostother'],
   ['related_name', 'id_type', 'id_no'],
   ['id_validity', 'gender', 'nationality'],
   ['birthday', 'mobno1', 'mobno2'],
@@ -36,10 +27,10 @@ const loadRows = response => {
 };
 
 function BeneficialOwner(props) {
-  const { clientId, relatedInfo = [], dictData = {}, editable = false, isSpecial = '0', onUpdate } = props;
+  const { clientId, relatedInfo = [], benefitBase: base, dictData = {},
+    editable = false, isSpecial = '0', onUpdate, onBaseUpdate } = props;
   const special = isSpecial === '1';
   const [rows, setRows] = useState(relatedInfo);
-  const [base, setBase] = useState(() => getBenefitBase(relatedInfo));
   const [baseVisible, setBaseVisible] = useState(false);
   const [baseDraft, setBaseDraft] = useState({});
   const [baseSaving, setBaseSaving] = useState(false);
@@ -49,13 +40,10 @@ function BeneficialOwner(props) {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [listLoading, setListLoading] = useState(false);
-  const needsSupplement = needsBenefitBaseSupplement(rows);
-  const existingBaseRow = rows.find(hasBenefitBaseInfo);
-  const existingBase = existingBaseRow ? getBenefitBase([existingBaseRow]) : null;
+  const needsSupplement = base === null && rows.length > 0;
 
   useEffect(() => {
     setRows(relatedInfo);
-    setBase(getBenefitBase(relatedInfo));
     setVisible(false);
     setBaseVisible(false);
     if (clientId) refresh().catch(error => message.error(error.message || '受益人加载失败'));
@@ -63,15 +51,18 @@ function BeneficialOwner(props) {
 
   useEffect(() => {
     setRows(relatedInfo);
-    setBase(current => relatedInfo.length ? getBenefitBase(relatedInfo) : current);
   }, [relatedInfo]);
 
-  const refresh = async () => {
+  const refresh = async (reloadAll = false) => {
     setListLoading(true);
     try {
+      if (reloadAll && onUpdate) {
+        const latest = await onUpdate({ reloadAllRelatedInfo: true });
+        setRows(latest.beneficialOwner);
+        return latest.beneficialOwner;
+      }
       const latest = loadRows(await services.selectBenefitInfo({ clientId }));
       setRows(latest);
-      setBase(current => latest.length ? getBenefitBase(latest) : current);
       if (onUpdate) onUpdate({ relatedType: '5', data: latest });
       return latest;
     } finally {
@@ -80,8 +71,9 @@ function BeneficialOwner(props) {
   };
 
   const changeBase = () => {
+    if (base === undefined) { message.warning('受益人基础信息加载失败，请刷新页面重试'); return; }
     if (rows.length && !needsSupplement) { message.warning('请先删除当前所有受益人，才能进行编辑'); return; }
-    setBaseDraft({ company_type: '', bo_type: '', full_info_flag: '', ...(existingBase || base) });
+    setBaseDraft({ company_type: '', bo_type: '', full_info_flag: '', ...base });
     setErrors({});
     setBaseVisible(true);
   };
@@ -90,49 +82,49 @@ function BeneficialOwner(props) {
     if (baseSaving) return;
     if (!baseDraft.company_type) { setErrors({ company_type: '请选择企业性质' }); return; }
     const values = { ...baseDraft, bo_type: getBenefitBoType(baseDraft.company_type) };
-    if (!rows.length) {
-      setBase(values);
-      setBaseVisible(false);
-      message.success('基础信息已暂存，将随受益人提交一起保存');
-      return;
-    }
-    if (!needsSupplement) { message.warning('请先删除当前所有受益人，才能进行编辑'); return; }
     setBaseSaving(true);
     try {
       const result = await services.saveBenefitBaseInfo({
         clientId, companyType: values.company_type, boType: values.bo_type, fullInfoFlag: values.full_info_flag
       });
       if (!result || !result.success) throw new Error((result && (result.msg || result.message)) || '基础信息保存失败');
-      const savedBase = getBenefitBase([normalizeRelatedInfo(result.data.baseInfo)]);
-      await refresh();
-      setBase(savedBase);
+      onBaseUpdate(normalizeBenefitBaseInfo(result.data.baseInfo));
       setBaseVisible(false);
-      message.success(result.data.persisted ? '受益人基础信息已保存' : '基础信息已暂存，将随受益人提交一起保存');
+      message.success('受益人基础信息已保存');
+      if (needsSupplement) await refresh();
     } catch (error) { message.error(error.message || '基础信息保存失败'); }
     finally { setBaseSaving(false); }
   };
 
   const deleteBase = () => {
     if (rows.length) { message.warning('请先删除当前所有受益人，才能进行删除'); return; }
-    Modal.confirm({ title: '确认删除当前受益人基础信息？', onOk: () => setBase(null) });
+    Modal.confirm({ title: '确认删除当前受益人基础信息？', onOk: async () => {
+      try {
+        const result = await services.deleteBenefitBaseInfo({ clientId });
+        if (!result?.success) throw new Error(result?.msg || result?.message || '基础信息删除失败');
+        onBaseUpdate(null);
+        message.success('基础信息已删除');
+      } catch (error) {
+        message.error(error.message || '基础信息删除失败');
+      }
+    } });
   };
 
-  const requireBase = (records, sharedBase) => {
-    if (needsBenefitBaseSupplement(records)) { message.warning('请先补录受益人基础信息'); return false; }
+  const requireBase = (sharedBase, currentRows = rows) => {
+    if (sharedBase === undefined) { message.warning('受益人基础信息加载失败，请刷新页面重试'); return false; }
+    if (!sharedBase && currentRows.length) { message.warning('请先补录受益人基础信息'); return false; }
     if (!hasBenefitBaseInfo(sharedBase)) { message.warning('请先添加受益人基础信息'); return false; }
     return true;
   };
 
   const open = async record => {
-    if (!requireBase(rows, base)) return;
+    if (!requireBase(base)) return;
     setBusy(true);
     try {
       const latest = await refresh();
-      const latestBase = latest.length ? getBenefitBase(latest) : base;
-      if (!requireBase(latest, latestBase)) return;
       const current = record ? latest.find(item => String(item.related_id) === String(record.related_id)) : null;
       if (record && !current) { message.warning('该受益人已不存在，请重新选择'); return; }
-      setDraft(newBenefitDraft({ ...(current || {}), ...latestBase }));
+      setDraft(newBenefitDraft({ ...(current || {}), ...base }));
       setMode(record ? 'edit' : 'add');
       setErrors({});
       setVisible(true);
@@ -142,27 +134,25 @@ function BeneficialOwner(props) {
 
   const changeField = (field, value) => {
     setDraft(current => {
-      const next = { ...current, [field.key]: value };
-      if (field.key === 'bnf_type') {
-        next.bnf_type = normalizeBnfTypeSelection(value);
-        if (next.bnf_type.some(code => ['NA3-1', 'NB3-1'].includes(code))) next.actctrlcpny = '2';
-        else if (next.bnf_type.some(code => ['NA3-2', 'NB3-2'].includes(code))) next.actctrlcpny = '3';
-        if (next.bnf_type.includes('NI') || String((base || {}).company_type || '').charAt(0) === 'I') next.seniormgrpos = ['10'];
-      }
-      const active = new Set(benefitFields(next, special, base).map(item => item.key));
-      benefitFields(current, special, base).forEach(item => {
-        if (!active.has(item.key)) next[item.key] = item.type === 'multi' ? [] : '';
+      const next = field.key === 'bnf_type' ?
+        changeBenefitOwnership(current, value, base?.company_type) : { ...current, [field.key]: value };
+      const active = new Set(benefitFields(next, special, base, dictData).map(item => item.key));
+      benefitFields(current, special, base, dictData).forEach(item => {
+        if (!active.has(item.key)) {
+          next[item.key] = item.type === 'multi' ? [] : '';
+          if (item.type === 'multi') next[item.key + '_str'] = '';
+        }
       });
       return next;
     });
-    setErrors(current => ({ ...current, [field.key]: undefined }));
+    setErrors(current => field.key === 'bnf_type' ? {} : { ...current, [field.key]: undefined });
   };
 
   const submit = async nextEntry => {
     if (busy) return;
-    if (!requireBase(rows, base)) return;
+    if (!requireBase(base)) return;
     const values = { ...draft, ...base };
-    const found = benefitRecordErrors(values, special, base);
+    const found = benefitRecordErrors(values, special, base, dictData);
     if (found.length) {
       setErrors(found.reduce((result, item) => ({ ...result, [item.field]: item.message }), {}));
       message.warning('请检查受益人信息');
@@ -182,11 +172,10 @@ function BeneficialOwner(props) {
       if (!(Number(result.data) > 0)) throw new Error('未保存任何受益人记录');
       message.success(mode === 'add' ? '添加成功' : '修改成功');
       setVisible(false);
-      const latest = await refresh();
+      const latest = await refresh(mode === 'edit');
       if (nextEntry) {
-        const latestBase = latest.length ? getBenefitBase(latest) : base;
-        if (!requireBase(latest, latestBase)) return;
-        setDraft(newBenefitDraft(latestBase));
+        if (!requireBase(base, latest)) return;
+        setDraft(newBenefitDraft(base));
         setMode('add');
         setErrors({});
         setVisible(true);
@@ -214,6 +203,8 @@ function BeneficialOwner(props) {
   const renderControl = field => {
     const value = draft[field.key];
     if (field.type === 'date') return <div>
+      {field.key !== 'id_begindate' && field.key !== 'id_enddate' &&
+        <div className={styles.dateHint}>如需手动填写，请按照“1990-01-01”的格式填写</div>}
       <DatePicker size="small" value={value ? moment(value, 'YYYY-MM-DD') : null} format="YYYY-MM-DD"
         placeholder={field.key === 'id_begindate' ? '开始日期' : (field.key === 'id_enddate' ? '结束日期' : '请选择日期')}
         onChange={(_, text) => changeField(field, text)} style={{ width: '100%' }} />
@@ -225,6 +216,10 @@ function BeneficialOwner(props) {
     if (field.type === 'select' || field.type === 'multi') {
       let list = dictData[field.dict] || [];
       if (field.key === 'bnf_type') list = list.filter(item => String(item.k).startsWith('N' + String((base || {}).company_type || '').charAt(0)));
+      if (field.key === 'seniormgrpos' && (draft.bnf_type.includes('NA4') || draft.bnf_type.includes('NB4'))) {
+        const allowed = draft.bnf_type.includes('NA4') ? ['10', '11', '12', '13', '15'] : ['14', '15'];
+        list = allowed.map(code => list.find(item => String(item.k) === code)).filter(Boolean);
+      }
       return <Select size="small" value={value === '' || value == null ? undefined : value} allowClear showSearch
         dropdownClassName={styles.optionDropdown}
         mode={field.type === 'multi' ? 'multiple' : undefined} optionFilterProp="children"
@@ -242,16 +237,12 @@ function BeneficialOwner(props) {
       onChange={event => changeField(field, event.target.value)} />;
   };
 
-  const formFields = benefitFields(draft, special, base || {}).reduce((result, field) => {
+  const formFields = benefitFields(draft, special, base || {}, dictData).reduce((result, field) => {
     result[field.key] = field;
     return result;
   }, {});
   const renderFormItem = (field, showLabel = true) => {
-    const label = {
-      mobno1: '联系方式（手机，与固话二选一，只能填一项）',
-      mobno2: '联系方式（固话，与手机二选一，只能填一项）'
-    }[field.key] || field.label;
-    return <Form.Item label={showLabel ? label : undefined} required={field.required}
+    return <Form.Item label={showLabel ? field.label : undefined} required={field.required}
       validateStatus={errors[field.key] ? 'error' : undefined} help={errors[field.key]}>
       {renderControl(field)}
     </Form.Item>;
@@ -268,13 +259,13 @@ function BeneficialOwner(props) {
     { title: '证件号码', dataIndex: 'id_no', width: 185 },
     { title: '证件有效期', width: 225, render: (_, item) => (item.id_begindate || '-') + ' 至 ' + (item.id_enddate || '-') },
     { title: '手机', dataIndex: 'mobno1', width: 135 },
-    { title: '固话', dataIndex: 'mobno2', width: 135 },
+    { title: '固定电话', dataIndex: 'mobno2', width: 135 },
     { title: '联系地址', dataIndex: 'address', width: 200 }
   ];
 
   return <Card id={props.id || 'beneficialOwner'} className="box-card" title="受益所有人"
     extra={editable && <div className={styles.actions}>
-      {(needsSupplement || !base) && <Button size="small" onClick={changeBase}>
+      {base === null && <Button size="small" onClick={changeBase}>
         {needsSupplement ? '补录受益人基础信息' : '基础信息添加'}
       </Button>}
       <Button type="primary" size="small" loading={busy} onClick={() => open()}>添加</Button>
@@ -292,7 +283,8 @@ function BeneficialOwner(props) {
       title={<span>{item.related_name || '-'} <Tag color="green">自然人</Tag></span>}
       extra={editable && <span><Button type="link" size="small" onClick={() => remove(item)}>删除</Button>
         <Button type="link" size="small" loading={busy} onClick={() => open(item)}>编辑</Button></span>}>
-      <Row gutter={24}>{benefitFields(item, special, base || item).filter(field => field.key !== 'related_name').map(field =>
+      <Row gutter={24}>{benefitFields(item, special, base || {}, dictData).filter(field =>
+        field.key !== 'related_name' && (field.key !== 'bnf_type' || item.bnf_type?.length > 0)).map(field =>
         <Col span={field.wide ? 24 : 8} key={field.key} className={styles.displayField}>
           <span className={styles.label}>{field.label}：</span><span className={styles.value}>{benefitValue(item, field, dictData)}</span>
         </Col>)}</Row>
@@ -302,11 +294,10 @@ function BeneficialOwner(props) {
     <Modal title="受益人基础信息" visible={baseVisible} width="80%" maskClosable={false}
       confirmLoading={baseSaving} cancelButtonProps={{ disabled: baseSaving }}
       onCancel={() => { if (!baseSaving) setBaseVisible(false); }} onOk={saveBase}>
-      {existingBase && <div>已有受益人保存过基础信息，本次沿用现有信息补齐其他记录。</div>}
       <Form layout="vertical">
         <Row gutter={24}><Col span={12}>
           <Form.Item label="企业性质" required validateStatus={errors.company_type ? 'error' : undefined} help={errors.company_type}>
-            <Select value={baseDraft.company_type || undefined} showSearch optionFilterProp="children" allowClear disabled={!!existingBase}
+            <Select value={baseDraft.company_type || undefined} showSearch optionFilterProp="children" allowClear
               style={{ width: '100%' }} onChange={value => {
                 setBaseDraft({ ...baseDraft, company_type: value || '', bo_type: getBenefitBoType(value) });
                 setErrors({});
@@ -322,15 +313,14 @@ function BeneficialOwner(props) {
         </Form.Item></Col></Row>
         <div className={styles.warning}>如适用才勾选，请谨慎选择</div>
         {['01', '02'].map(value => <div key={value} className={styles.radio}>
-          <Radio checked={baseDraft.full_info_flag === value} disabled={!!existingBase} onClick={() => {
-            if (existingBase) return;
+          <Radio checked={baseDraft.full_info_flag === value} onClick={() => {
             setBaseDraft({ ...baseDraft, full_info_flag: baseDraft.full_info_flag === value ? '' : value });
           }}>{benefitValue({ full_info_flag: value }, { key: 'full_info_flag' }, dictData)}</Radio>
         </div>)}
         {baseDraft.full_info_flag === '01' && <div className={styles.warning}>
           <div>1、国有企业为经官方信息验证并确认属于国有独资公司、国有控股公司、全民所有制企业。</div>
-          <div>2、姓名、性别、国籍、出生日期、证件类型、证件号码、证件有效期、联系地址为必填项，手机与固话二选一填写；出生日期请选择完整日期。</div>
-          <div>3、受益所有人身份证明文件的复印件请上传用于身份识别的照片。</div>
+          <div>2、勾选后，至少填写姓名、性别、国籍、出生日期。</div>
+          <div>3、底稿6-1 受益所有人身份证明文件的复印件请上传用于身份识别的照片。</div>
         </div>}
         {baseDraft.full_info_flag === '02' && <div className={styles.warning}>
           勾选后，新客户仍为草稿状态，不进入审核流程；老客户自动设为强限制客户。
@@ -352,6 +342,18 @@ function BeneficialOwner(props) {
           locale={{ emptyText: '暂无受益人信息' }}
           pagination={false} loading={listLoading} scroll={{ x: 1800, y: 240 }} />
         <Form layout="vertical" className={styles.form}>
+          <Row gutter={24}><Col span={24}>{renderFormItem(formFields.bnf_type)}</Col></Row>
+          {benefitOwnershipSections(draft.bnf_type).map(group => {
+            const fields = <Row gutter={24}>{group.fields.filter(key => formFields[key]).map(key =>
+              <Col key={key} span={formSpans[key] || 8} className={styles.singleField}>
+                {renderFormItem(formFields[key])}
+              </Col>
+            )}</Row>;
+            const title = benefitValue({ bnf_type: group.codes }, formFields.bnf_type, dictData);
+            return draft.bnf_type.length >= 2 ?
+              <Card key={group.fields[0]} size="small" title={title} className={styles.baseCard}>{fields}</Card> :
+              <React.Fragment key={group.fields[0]}>{fields}</React.Fragment>;
+          })}
           {formGroups.map((group, index) => {
             const keys = group.filter(key => key === 'id_validity' || formFields[key]);
             if (!keys.length) return null;

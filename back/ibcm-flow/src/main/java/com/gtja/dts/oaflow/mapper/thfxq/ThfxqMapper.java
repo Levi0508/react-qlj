@@ -17,6 +17,7 @@ import org.apache.ibatis.mapping.StatementType;
 import org.apache.ibatis.type.JdbcType;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author 程婧
@@ -42,6 +43,21 @@ public interface ThfxqMapper {
      */
     @Select("select a.* from thjs.t_th_relat_info a where a.client_id = #{clientId} and a.related_type = #{relatedType} and (a.related_type = '5' or a.data_status = #{dataType, jdbcType=VARCHAR} or #{dataType, jdbcType=VARCHAR} is null) union all select b.* from thjs.t_th_relat_info_tmp b where b.client_id = #{clientId} and b.related_type = #{relatedType}")
     List<RelatedInfo> selectRelatedInfo(@Param("clientId") String clientId, @Param("relatedType") String relatedType, @Param("dataType") String dataType);
+
+    @Select("SELECT COMPANY_TYPE AS companyType, BO_TYPE AS boType, FULL_INFO_FLAG AS fullInfoFlag " +
+            "FROM thjs.T_TH_BENEFIT_BASE_INFO WHERE CLIENT_ID = #{clientId}")
+    RelatedInfo selectBenefitBaseInfo(@Param("clientId") String clientId);
+
+    @Update("MERGE INTO thjs.T_TH_BENEFIT_BASE_INFO b " +
+            "USING (SELECT #{clientId, jdbcType=VARCHAR} CLIENT_ID FROM dual) s ON (b.CLIENT_ID = s.CLIENT_ID) " +
+            "WHEN MATCHED THEN UPDATE SET b.COMPANY_TYPE = #{companyType, jdbcType=VARCHAR}, " +
+            "b.BO_TYPE = #{boType, jdbcType=VARCHAR}, b.FULL_INFO_FLAG = #{fullInfoFlag, jdbcType=VARCHAR} " +
+            "WHEN NOT MATCHED THEN INSERT (CLIENT_ID, COMPANY_TYPE, BO_TYPE, FULL_INFO_FLAG) " +
+            "VALUES (s.CLIENT_ID, #{companyType, jdbcType=VARCHAR}, #{boType, jdbcType=VARCHAR}, #{fullInfoFlag, jdbcType=VARCHAR})")
+    int upsertBenefitBaseInfo(RelatedInfo baseInfo);
+
+    @Delete("DELETE FROM thjs.T_TH_BENEFIT_BASE_INFO WHERE CLIENT_ID = #{clientId}")
+    int deleteBenefitBaseInfo(@Param("clientId") String clientId);
 
     @Update("update thjs.t_th_relat_info set COMPANY_TYPE = #{companyType, jdbcType=VARCHAR}, BO_TYPE = #{boType, jdbcType=VARCHAR}, FULL_INFO_FLAG = #{fullInfoFlag, jdbcType=VARCHAR} where CLIENT_ID = #{clientId} and RELATED_TYPE = '5'")
     int updateBenefitBaseInfo(RelatedInfo baseInfo);
@@ -198,11 +214,42 @@ public interface ThfxqMapper {
     @Delete("DELETE FROM thjs.t_th_relat_info_tmp WHERE CLIENT_ID = #{clientId} AND RELATED_ID = #{relatedId} AND RELATED_TYPE = '5'")
     int deleteBenefitInfoTmp(@Param("clientId") String clientId, @Param("relatedId") String relatedId);
 
-    @Delete("DELETE FROM thjs.t_th_relat_info WHERE CLIENT_ID = #{clientId} AND RELATED_NAME = #{relatedName} AND RELATED_TYPE IN ('1', '2', '3', '4')")
-    int deleteOtherRelatedInfoByName(@Param("clientId") String clientId, @Param("relatedName") String relatedName);
+    @Delete("DELETE FROM thjs.t_th_relat_info WHERE CLIENT_ID = #{clientId} AND RELATED_NAME = #{relatedName} " +
+            "AND ORGAN_FLAG = #{organFlag} AND RELATED_TYPE IN ('1', '2', '3', '4')")
+    int deleteOtherRelatedInfoByName(@Param("clientId") String clientId, @Param("relatedName") String relatedName,
+                                     @Param("organFlag") String organFlag);
 
-    @Delete("DELETE FROM thjs.t_th_relat_info_tmp WHERE CLIENT_ID = #{clientId} AND RELATED_NAME = #{relatedName} AND RELATED_TYPE IN ('1', '2', '3', '4')")
-    int deleteOtherRelatedInfoTmpByName(@Param("clientId") String clientId, @Param("relatedName") String relatedName);
+    @Delete("DELETE FROM thjs.t_th_relat_info_tmp WHERE CLIENT_ID = #{clientId} AND RELATED_NAME = #{relatedName} " +
+            "AND ORGAN_FLAG = #{organFlag} AND RELATED_TYPE IN ('1', '2', '3', '4')")
+    int deleteOtherRelatedInfoTmpByName(@Param("clientId") String clientId, @Param("relatedName") String relatedName,
+                                        @Param("organFlag") String organFlag);
+
+    @Select("SELECT RELATED_TYPE, RELATED_NAME, ORGAN_FLAG, NATIONALITY, BIRTHDAY, ID_TYPE, ID_NO, " +
+            "ID_BEGINDATE, ID_ENDDATE, MOBNO1, 0 AS SOURCE_ORDER FROM thjs.T_TH_RELAT_INFO_TMP " +
+            "WHERE CLIENT_ID = #{clientId} AND RELATED_ID = #{relatedId} " +
+            "UNION ALL SELECT RELATED_TYPE, RELATED_NAME, ORGAN_FLAG, NATIONALITY, BIRTHDAY, ID_TYPE, ID_NO, " +
+            "ID_BEGINDATE, ID_ENDDATE, MOBNO1, 1 AS SOURCE_ORDER FROM thjs.T_TH_RELAT_INFO " +
+            "WHERE CLIENT_ID = #{clientId} AND RELATED_ID = #{relatedId} ORDER BY SOURCE_ORDER")
+    List<RelatedInfo> selectPersonalInfoById(@Param("clientId") String clientId, @Param("relatedId") String relatedId);
+
+    @Update("<script>UPDATE <choose><when test='temporary'>thjs.T_TH_RELAT_INFO_TMP</when>" +
+            "<otherwise>thjs.T_TH_RELAT_INFO</otherwise></choose> " +
+            "<set>" +
+            "<if test=\"changes.containsKey('nationality')\">NATIONALITY = #{changes.nationality, jdbcType=VARCHAR},</if>" +
+            "<if test=\"changes.containsKey('birthday')\">BIRTHDAY = #{changes.birthday, jdbcType=VARCHAR},</if>" +
+            "<if test=\"changes.containsKey('idType')\">ID_TYPE = #{changes.idType, jdbcType=VARCHAR},</if>" +
+            "<if test=\"changes.containsKey('idNo')\">ID_NO = #{changes.idNo, jdbcType=VARCHAR},</if>" +
+            "<if test=\"changes.containsKey('idBegindate')\">ID_BEGINDATE = #{changes.idBegindate, jdbcType=VARCHAR},</if>" +
+            "<if test=\"changes.containsKey('idEnddate')\">ID_ENDDATE = #{changes.idEnddate, jdbcType=VARCHAR},</if>" +
+            "<if test=\"changes.containsKey('mobno1')\">MOBNO1 = <choose><when test='beneficiary'>#{changes.mobno1, jdbcType=VARCHAR}</when>" +
+            "<otherwise>CASE WHEN RELATED_TYPE IN ('1','4') THEN #{changes.mobno1, jdbcType=VARCHAR} ELSE MOBNO1 END</otherwise></choose>,</if>" +
+            "</set> WHERE CLIENT_ID = #{clientId} AND RELATED_NAME = #{relatedName} AND ORGAN_FLAG = '0' " +
+            "<choose><when test='beneficiary'>AND RELATED_TYPE = '5'</when>" +
+            "<when test='onlyMobile'>AND RELATED_TYPE IN ('1','4')</when>" +
+            "<otherwise>AND RELATED_TYPE IN ('1','2','3','4')</otherwise></choose></script>")
+    int syncRelatedPersonalInfo(@Param("clientId") String clientId, @Param("relatedName") String relatedName,
+                                @Param("changes") Map<String, String> changes, @Param("beneficiary") boolean beneficiary,
+                                @Param("onlyMobile") boolean onlyMobile, @Param("temporary") boolean temporary);
 
     @Select("select * from(select a.* from thjs.t_th_relat_info a where a.client_id = #{clientId, jdbcType=VARCHAR} and a.organ_flag = #{organFlag, jdbcType=VARCHAR} and (a.related_name = #{relatedName, jdbcType=VARCHAR} or #{relatedName, jdbcType=VARCHAR} is null or #{relatedName, jdbcType=VARCHAR} = '') union all select b.* from thjs.t_th_relat_info_tmp b where b.client_id = #{clientId, jdbcType=VARCHAR} and b.organ_flag = #{organFlag, jdbcType=VARCHAR} and (b.related_name = #{relatedName, jdbcType=VARCHAR} or #{relatedName, jdbcType=VARCHAR} is null or #{relatedName, jdbcType=VARCHAR} = ''))t order by t.create_time")
     List<RelatedInfo> selectOrganEntity(@Param("clientId") String clientId, @Param("organFlag") String organFlag, @Param("relatedName") String relatedName);
@@ -296,7 +343,7 @@ public interface ThfxqMapper {
             "(" +
             "<if test=\"preserveRelatedId\">RELATED_ID,</if>" +
             "CLIENT_ID, RELATED_TYPE, RELATED_NAME, ORGAN_FLAG, ID_TYPE, ID_NO, ID_BEGINDATE, ID_ENDDATE, " +
-            "NATIONALITY, BIRTHDAY, IS_GOVERNMENT_DEPT, BENEFICIARY, SHAREHOLDING_RATIO, ADDRESS,MOBNO1, OBJECT_ID, UPDATE_USER, UPDATE_TIME, CREATE_USER, CREATE_TIME, DATA_STATUS, COMPANY_TYPE, BO_TYPE, FULL_INFO_FLAG, BNF_TYPE, GENDER, MOBNO2, ACTCTRL, ACTHDRAT, SHARERATIOSTARTDATE, SHARERATIOENDDATE, ACTCTRLCPNY, ACTCTRLTYPE, OBTAINACTDATE, TERMINATIONACTDATE, ACTOTHERFORMS, ACTCONUPPERMARKET, ACTCONUPPERENTNAME, ACTCONUNISCID, PRIBENFIT, ACTOWNERPROFITRATIO, PROFITRATIOSTARTDATE, PROFITRATIOENDDATE, ACTOWNERPROFITRATIOVOTE, PROFITRATIOVOTESTARTDATE, PROFITRATIOVOTEENDDATE, SENIORMGR, SENIORMGRPOS, ACTDAILYMGMTPOSTOTHER, SENIORMGRCN, SENIORMGRPOSCN, OWNERRIGHTMGMTPOSTOTHER) " +
+            "NATIONALITY, BIRTHDAY, IS_GOVERNMENT_DEPT, BENEFICIARY, SHAREHOLDING_RATIO, ADDRESS,MOBNO1, OBJECT_ID, UPDATE_USER, UPDATE_TIME, CREATE_USER, CREATE_TIME, DATA_STATUS, COMPANY_TYPE, BO_TYPE, FULL_INFO_FLAG, BNF_TYPE, GENDER, MOBNO2, ACTCTRL, ACTHDRAT, SHARERATIOSTARTDATE, SHARERATIOENDDATE, ACTCTRLCPNY, ACTCTRLTYPE, OBTAINACTDATE, TERMINATIONACTDATE, ACTOTHERFORMS, ACTCONUPPERMARKET, ACTCONUPPERENTNAME, ACTCONUNISCID, PRIBENFIT, ACTOWNERPROFITRATIO, PROFITRATIOSTARTDATE, PROFITRATIOENDDATE, ACTOWNERPROFITRATIOVOTE, PROFITRATIOVOTESTARTDATE, PROFITRATIOVOTEENDDATE, SENIORMGR, SENIORMGRPOS, ACTDAILYMGMTPOSTOTHER, SENIORMGRCN, SENIORMGRPOSCN, OWNERRIGHTMGMTPOSTOTHER, BENEFIT_START_DATE, BENEFIT_END_DATE, SENIORMGRCN_START_DATE, SENIORMGRCN_END_DATE) " +
             "VALUES " +
             "(" +
             "<if test=\"preserveRelatedId\">#{record.relatedId, jdbcType=VARCHAR},</if>" +
@@ -313,7 +360,7 @@ public interface ThfxqMapper {
             "            TO_CHAR((SELECT u1.user_name FROM wolf.wb_user_hg u1 WHERE u1.user_id = #{record.createUser, jdbcType=VARCHAR}))," +
             "            TO_CHAR(#{record.createUser, jdbcType=VARCHAR}) " +
             "        )" +
-            "    ), sysdate, '0', #{record.companyType, jdbcType=VARCHAR}, #{record.boType, jdbcType=VARCHAR}, #{record.fullInfoFlag, jdbcType=VARCHAR}, #{record.bnfType, jdbcType=VARCHAR}, #{record.gender, jdbcType=VARCHAR}, #{record.mobno2, jdbcType=VARCHAR}, #{record.actctrl, jdbcType=VARCHAR}, #{record.acthdrat, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.shareratiostartdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.shareratioenddate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.actctrlcpny, jdbcType=VARCHAR}, #{record.actctrltype, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.obtainactdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.terminationactdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.actotherforms, jdbcType=VARCHAR}, #{record.actconuppermarket, jdbcType=VARCHAR}, #{record.actconupperentname, jdbcType=VARCHAR}, #{record.actconuniscid, jdbcType=VARCHAR}, #{record.pribenfit, jdbcType=VARCHAR}, #{record.actownerprofitratio, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.profitratiostartdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.profitratioenddate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.actownerprofitratiovote, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.profitratiovotestartdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.profitratiovoteenddate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.seniormgr, jdbcType=VARCHAR}, #{record.seniormgrpos, jdbcType=VARCHAR}, #{record.actdailymgmtpostother, jdbcType=VARCHAR}, #{record.seniormgrcn, jdbcType=VARCHAR}, #{record.seniormgrposcn, jdbcType=VARCHAR}, #{record.ownerrightmgmtpostother, jdbcType=VARCHAR})</script>")
+            "    ), sysdate, '0', #{record.companyType, jdbcType=VARCHAR}, #{record.boType, jdbcType=VARCHAR}, #{record.fullInfoFlag, jdbcType=VARCHAR}, #{record.bnfType, jdbcType=VARCHAR}, #{record.gender, jdbcType=VARCHAR}, #{record.mobno2, jdbcType=VARCHAR}, #{record.actctrl, jdbcType=VARCHAR}, #{record.acthdrat, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.shareratiostartdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.shareratioenddate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.actctrlcpny, jdbcType=VARCHAR}, #{record.actctrltype, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.obtainactdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.terminationactdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.actotherforms, jdbcType=VARCHAR}, #{record.actconuppermarket, jdbcType=VARCHAR}, #{record.actconupperentname, jdbcType=VARCHAR}, #{record.actconuniscid, jdbcType=VARCHAR}, #{record.pribenfit, jdbcType=VARCHAR}, #{record.actownerprofitratio, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.profitratiostartdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.profitratioenddate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.actownerprofitratiovote, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.profitratiovotestartdate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.profitratiovoteenddate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), #{record.seniormgr, jdbcType=VARCHAR}, #{record.seniormgrpos, jdbcType=VARCHAR}, #{record.actdailymgmtpostother, jdbcType=VARCHAR}, #{record.seniormgrcn, jdbcType=VARCHAR}, #{record.seniormgrposcn, jdbcType=VARCHAR}, #{record.ownerrightmgmtpostother, jdbcType=VARCHAR}, TO_TIMESTAMP(#{record.benefitStartDate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.benefitEndDate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.seniormgrcnStartDate, jdbcType=VARCHAR}, 'YYYY-MM-DD'), TO_TIMESTAMP(#{record.seniormgrcnEndDate, jdbcType=VARCHAR}, 'YYYY-MM-DD'))</script>")
     int insertRelatedInfoTmp(@Param("record") RelatedInfo relatedInfo, @Param("preserveRelatedId") boolean preserveRelatedId);
 
     /**

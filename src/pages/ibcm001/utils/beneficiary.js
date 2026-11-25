@@ -5,7 +5,9 @@ const aliases = {
   object_id: 'objectId', create_user: 'createUser', create_time: 'createTime',
   update_user: 'updateUser', update_time: 'updateTime', data_status: 'dataStatus',
   shareholding_ratio: 'shareholdingRatio', company_type: 'companyType',
-  bo_type: 'boType', full_info_flag: 'fullInfoFlag', bnf_type: 'bnfType'
+  bo_type: 'boType', full_info_flag: 'fullInfoFlag', bnf_type: 'bnfType',
+  benefit_start_date: 'benefitStartDate', benefit_end_date: 'benefitEndDate',
+  seniormgrcn_start_date: 'seniormgrcnStartDate', seniormgrcn_end_date: 'seniormgrcnEndDate'
 };
 
 const ownershipKeys = [
@@ -42,7 +44,8 @@ export function normalizeRelatedInfo(row) {
   });
   ['birthday', 'id_begindate', 'id_enddate', 'shareratiostartdate', 'shareratioenddate',
     'profitratiostartdate', 'profitratioenddate', 'profitratiovotestartdate', 'profitratiovoteenddate',
-    'obtainactdate', 'terminationactdate'].forEach(key => { result[key] = benefitDate(result[key]); });
+    'obtainactdate', 'terminationactdate', 'benefit_start_date', 'benefit_end_date',
+    'seniormgrcn_start_date', 'seniormgrcn_end_date'].forEach(key => { result[key] = benefitDate(result[key]); });
   return result;
 }
 
@@ -59,13 +62,11 @@ export function relatedInfoPayload(row) {
 export const getBenefitBoType = companyType => companyType ? (/^[1-6]/.test(String(companyType)) ? '1' : '2') : '';
 export const hasBenefitBaseInfo = base => !!(base &&
   String(base.company_type || '').trim() && String(base.bo_type || '').trim());
-export const needsBenefitBaseSupplement = rows => rows.some(item => !hasBenefitBaseInfo(item));
-export const getBenefitBase = rows => {
-  if (needsBenefitBaseSupplement(rows)) return null;
-  const row = rows.find(hasBenefitBaseInfo);
-  return row ? { company_type: row.company_type, bo_type: getBenefitBoType(row.company_type),
-    full_info_flag: row.full_info_flag || '' } : null;
-};
+export const normalizeBenefitBaseInfo = row => row ? {
+  company_type: row.company_type ?? row.companyType,
+  bo_type: row.bo_type ?? row.boType,
+  full_info_flag: row.full_info_flag ?? row.fullInfoFlag ?? ''
+} : null;
 export const orderedBenefitCompanies = dict => ['A', 'B', 'I']
   .reduce((list, prefix) => list.concat(dict.filter(item => String(item.k).startsWith(prefix))), [])
   .concat(dict.filter(item => !['A', 'B', 'I'].includes(String(item.k).charAt(0))));
@@ -73,8 +74,56 @@ export const orderedBenefitCompanies = dict => ['A', 'B', 'I']
 export const benefitBaseFields = [
   { key: 'company_type', label: '企业性质', dict: 'benefit_company_no_list' },
   { key: 'bo_type', label: '受益所有人是否需识别', dict: 'benefit_flag_list' },
-  { key: 'full_info_flag', label: '客户信息披露情况' }
+  { key: 'full_info_flag', label: '客户信息披露特殊情况（如有）' }
 ];
+
+const benefitOwnershipGroups = [
+  { types: ['NA1', 'NB1', 'ND1'], fields: ['acthdrat', 'shareratiostartdate', 'shareratioenddate'] },
+  { types: ['NA2-1', 'NB2-1', 'ND2-1'], fields: ['actownerprofitratio', 'profitratiostartdate', 'profitratioenddate'] },
+  { types: ['NA2-2', 'NB2-2', 'ND2-2'], fields: ['actownerprofitratiovote', 'profitratiovotestartdate', 'profitratiovoteenddate'] },
+  { types: ['NA3-1', 'NA3-2', 'NB3-1', 'NB3-2', 'ND3'], fields: [
+    'actctrltype', 'actotherforms', 'actconuppermarket', 'actconupperentname', 'actconuniscid', 'obtainactdate', 'terminationactdate', 'actctrlcpny'
+  ] },
+  { fields: [
+    'seniormgrpos', 'actdailymgmtpostother', 'benefit_start_date', 'benefit_end_date'
+  ] },
+  { types: ['NA5'], fields: ['seniormgrposcn', 'ownerrightmgmtpostother', 'seniormgrcn_start_date', 'seniormgrcn_end_date'] }
+];
+
+export function benefitOwnershipSections(types) {
+  const codes = toBenefitCodes(types);
+  return benefitOwnershipGroups.map(group => ({
+    fields: group.fields,
+    codes: codes.filter(code => group.types ? group.types.includes(code) :
+      !benefitOwnershipGroups.some(other => other.types?.includes(code)))
+  })).filter(group => group.codes.length > 0);
+}
+
+export function changeBenefitOwnership(item, selection, companyType) {
+  const previous = toBenefitCodes(item.bnf_type);
+  const bnfType = normalizeBnfTypeSelection(selection);
+  const next = { ...item, bnf_type: bnfType, bnf_type_str: bnfType.join(',') };
+  const retained = new Set(benefitOwnershipSections(previous.filter(code => bnfType.includes(code)))
+    .map(group => group.fields));
+  benefitOwnershipSections(previous.concat(bnfType)).forEach(group => {
+    if (!retained.has(group.fields)) group.fields.forEach(key => {
+      next[key] = multiKeys.includes(key) ? [] : '';
+      if (multiKeys.includes(key)) next[key + '_str'] = '';
+    });
+  });
+
+  const added = bnfType.filter(code => !previous.includes(code));
+  if (added.some(code => ['NA3-1', 'NB3-1'].includes(code))) next.actctrlcpny = '2';
+  else if (added.some(code => ['NA3-2', 'NB3-2'].includes(code))) next.actctrlcpny = '3';
+  if (bnfType.includes('NI') || String(companyType || '').startsWith('I')) next.seniormgrpos = ['10'];
+  return next;
+}
+
+export function hasOtherBenefitControl(values, dictData) {
+  const option = (dictData.benefit_actctrltype_list || []).find(item =>
+    /^(?:\d+\s*[-－、]\s*)?(其他|其它)形式$/.test(String(item.v || '').trim()));
+  return !!option && toBenefitCodes(values).includes(String(option.k));
+}
 export function benefitValue(item, field, dictData) {
   const value = item[field.key];
   if (field.key === 'full_info_flag') {
@@ -90,9 +139,9 @@ export function benefitValue(item, field, dictData) {
   return value == null || value === '' ? '-' : String(value);
 }
 
-export function benefitFields(item, isSpecial = false, base = item) {
+export function benefitFields(item, isSpecial = false, base = item, dictData = {}) {
   const required = !isSpecial;
-  const identityRequired = !isSpecial;
+  const identityRequired = required && base.full_info_flag !== '01';
   const codes = toBenefitCodes(item.bnf_type);
   const has = types => types.some(code => codes.includes(code));
   const fields = [
@@ -105,10 +154,10 @@ export function benefitFields(item, isSpecial = false, base = item) {
     { key: 'id_begindate', label: '证件有效期开始日期', type: 'date', required: identityRequired },
     { key: 'id_enddate', label: '证件有效期结束日期', type: 'date', required: identityRequired },
     { key: 'mobno1', label: '联系方式（手机）' },
-    { key: 'mobno2', label: '联系方式（固话）' },
+    { key: 'mobno2', label: '联系方式（固定电话）' },
     { key: 'address', label: '联系地址', required: identityRequired, wide: true },
     { key: 'bnf_type', label: '受益所有权类型', type: 'multi', dict: 'bnf_type_new_list',
-      required: required && base.bo_type === '2', wide: true }
+      required, wide: true }
   ];
   const add = (key, label, type = 'text', dict, mandatory = required, wide = false) =>
     fields.push({ key, label, type, dict, required: mandatory, wide });
@@ -123,10 +172,10 @@ export function benefitFields(item, isSpecial = false, base = item) {
     add(dateKey + 'enddate', '终止日期（' + kind + '）', 'date', undefined, false);
   });
   if (has(['NA3-1', 'NA3-2', 'NB3-1', 'NB3-2', 'ND3'])) {
-    if (has(['NA3-1', 'NB3-1']) || (has(['ND3']) && item.actctrlcpny === '2')) {
-      add('actctrltype', '实施实际控制的内容／方式', 'multi', 'benefit_actctrltype_list', required, true);
+    add('actctrltype', '实施实际控制的内容／方式', 'multi', 'benefit_actctrltype_list', required, true);
+    if (hasOtherBenefitControl(item.actctrltype, dictData)) {
+      add('actotherforms', '其他形式的具体内容', 'textarea', undefined, required, true);
     }
-    if (has(['NA3-2', 'NB3-2', 'ND3'])) add('actotherforms', '其他形式的具体内容', 'textarea', undefined, required, true);
     add('obtainactdate', '形成日期（实施实际控制）', 'date');
     add('terminationactdate', '终止日期（实施实际控制）', 'date', undefined, false);
   }
@@ -138,16 +187,22 @@ export function benefitFields(item, isSpecial = false, base = item) {
     }
   }
   if (has(['NA4', 'NB4'])) {
-    add('seniormgrpos', '负责日常经营管理的（高级管理）人员职位', 'multi', 'benefit_seniormgrpos_list', required, true);
-    if (toBenefitCodes(item.seniormgrpos).includes('15')) add('actdailymgmtpostother', '公司章程规定的其他（高级管理）人员的具体职位', 'text', undefined, required, true);
+    add('seniormgrpos', '负责日常经营管理的人员职位', 'multi', 'benefit_seniormgrpos_list', required, true);
+    if (toBenefitCodes(item.seniormgrpos).includes('15')) add('actdailymgmtpostother', '其他负责日常经营管理人员的具体职位', 'text', undefined, required, true);
   }
   if (has(['NI']) || String(base.company_type || '').charAt(0) === 'I') {
-    add('seniormgrpos', '负责日常经营管理的（高级管理）人员职位', 'multi', 'benefit_seniormgrpos_list', false, true);
+    add('seniormgrpos', '负责日常经营管理的人员职位', 'multi', 'benefit_seniormgrpos_list', false, true);
     fields[fields.length - 1].readOnly = true;
   }
   if (has(['NA5'])) {
     add('seniormgrposcn', '在华最高层级的高级管理人员职位', 'multi', 'benefit_seniormgrposcn_list', required, true);
     if (toBenefitCodes(item.seniormgrposcn).includes('1')) add('ownerrightmgmtpostother', '在华最高层级的高级管理其他职位', 'text', undefined, required, true);
+    add('seniormgrcn_start_date', '形成日期（在华最高层级的高级管理人员）', 'date');
+    add('seniormgrcn_end_date', '终止日期（在华最高层级的高级管理人员）', 'date', undefined, false);
+  }
+  if (benefitOwnershipSections(codes).some(group => group.fields.includes('benefit_start_date'))) {
+    add('benefit_start_date', '形成日期', 'date');
+    add('benefit_end_date', '终止日期', 'date', undefined, false);
   }
   return fields;
 }
@@ -158,10 +213,10 @@ const validDate = value => {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 
-export function benefitRecordErrors(item, isSpecial, base = item) {
+export function benefitRecordErrors(item, isSpecial, base = item, dictData = {}) {
   if (isSpecial) return empty(item.related_name) ? [{ field: 'related_name', message: '姓名不能为空' }] : [];
   const errors = [];
-  benefitFields(item, isSpecial, base).forEach(field => {
+  benefitFields(item, isSpecial, base, dictData).forEach(field => {
     const value = item[field.key];
     if (field.required && empty(value)) errors.push({ field: field.key, message: field.label + '不能为空' });
     if (!empty(value) && field.type === 'date' && !validDate(String(value))) errors.push({ field: field.key, message: field.label + '必须为有效的完整日期' });
@@ -170,8 +225,7 @@ export function benefitRecordErrors(item, isSpecial, base = item) {
     }
   });
   const mobile = String(item.mobno1 || '').trim(), telephone = String(item.mobno2 || '').trim();
-  if (!mobile && !telephone) errors.push({ field: 'mobno1', message: '手机与固话二选一，请填写其中一项' });
-  if (mobile && telephone) errors.push({ field: 'mobno2', message: '手机与固话只能填写一项' });
+  if (!mobile && !telephone) errors.push({ field: 'mobno1', message: '请至少填写一项联系方式（手机或固定电话）' });
   if (isSpecial && !!item.id_type !== !!item.id_no) {
     errors.push({ field: 'id_no', message: '证件类型与证件号码必须同时填写或同时留空' });
   }
@@ -181,14 +235,15 @@ export function benefitRecordErrors(item, isSpecial, base = item) {
   return errors;
 }
 
-export function benefitListErrors(rows, isSpecial, sharedBase = getBenefitBase(rows)) {
+export function benefitListErrors(rows, isSpecial, sharedBase, { forSubmit = false, dictData = {} } = {}) {
+  if (String(sharedBase?.bo_type) === '1' && (forSubmit || !rows.length)) return [];
+  if (!isSpecial) {
+    if (sharedBase === undefined) return ['受益人基础信息加载失败，请刷新页面重试'];
+    if (!hasBenefitBaseInfo(sharedBase)) return ['请先填写或补录受益人基础信息'];
+  }
   if (!rows.length) return ['请添加受益所有人信息'];
   const errors = [];
-  if (!isSpecial) {
-    if (!sharedBase || !sharedBase.company_type) errors.push('受益人基础信息的企业性质不能为空');
-    if (!sharedBase || !sharedBase.bo_type) errors.push('受益人基础信息的受益所有人是否需识别不能为空');
-  }
-  rows.forEach((row, index) => benefitRecordErrors(row, isSpecial, sharedBase || {}).forEach(error =>
+  rows.forEach((row, index) => benefitRecordErrors(row, isSpecial, sharedBase || {}, dictData).forEach(error =>
     errors.push('第' + (index + 1) + '位受益所有人' + (row.related_name || '') + '：' + error.message)));
   return errors;
 }

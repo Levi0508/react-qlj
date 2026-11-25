@@ -149,7 +149,12 @@ public interface ThfxqService {
 
     Map<String, Object> saveBenefitBaseInfo(RelatedInfo baseInfo);
 
-    int updateRelatedEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser);
+    Map<String, String> selectBenefitBaseInfo(String clientId);
+
+    int deleteBenefitBaseInfo(String clientId);
+
+    int updateRelatedEntity(String clientId, String relatedName, String sourceRelatedId,
+                            List<RelatedInfo> organEntityList, String createUser);
 
     /**
      * 上传文件

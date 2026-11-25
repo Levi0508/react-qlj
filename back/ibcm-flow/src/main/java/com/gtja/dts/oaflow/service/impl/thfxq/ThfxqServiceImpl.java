@@ -1879,6 +1879,7 @@ public class ThfxqServiceImpl implements ThfxqService {
         for (RelatedInfo organEntity : organEntityList) {
             if ("5".equals(organEntity.getRelatedType())) {
                 prepareNewBenefit(organEntity);
+                applySavedBenefitBase(organEntity);
             }
             totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity, false);
         }
@@ -1907,48 +1908,136 @@ public class ThfxqServiceImpl implements ThfxqService {
     public int updateBenefitInfo(RelatedInfo benefitInfo) {
         prepareBenefit(benefitInfo, true);
         validateBenefitBaseInfo(benefitInfo);
+        applySavedBenefitBase(benefitInfo);
+        RelatedInfo original = thfxqMapper.selectPersonalInfoById(benefitInfo.getClientId(), benefitInfo.getRelatedId())
+                .stream().filter(row -> "5".equals(row.getRelatedType())).findFirst().orElse(null);
         int deleted = thfxqMapper.deleteBenefitInfoTmp(benefitInfo.getClientId(), benefitInfo.getRelatedId())
                 + thfxqMapper.deleteBenefitInfo(benefitInfo.getClientId(), benefitInfo.getRelatedId());
         if (deleted == 0) {
             return 0;
         }
         // 沿用弹窗提交写临时表的方式；后续客户保存再转主表，人员ID保持不变。
-        return thfxqMapper.insertRelatedInfoTmp(benefitInfo, true);
+        int affected = thfxqMapper.insertRelatedInfoTmp(benefitInfo, true);
+        if (original != null) {
+            syncPersonalInfo(original, benefitInfo, false, true);
+        }
+        return affected;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> saveBenefitBaseInfo(RelatedInfo baseInfo) {
         prepareBenefitBaseInfo(baseInfo);
+        RelatedInfo saved = thfxqMapper.selectBenefitBaseInfo(baseInfo.getClientId());
         List<RelatedInfo> rows = thfxqMapper.selectRelatedInfo(baseInfo.getClientId(), "5", null);
-        validateBenefitBaseSupplement(rows, baseInfo);
-        boolean persisted = !rows.isEmpty();
-        if (persisted) {
+        if (saved != null && !rows.isEmpty() &&
+                (!Objects.equals(saved.getCompanyType(), baseInfo.getCompanyType()) ||
+                        !Objects.equals(saved.getBoType(), baseInfo.getBoType()) ||
+                        !sameTextValue(saved.getFullInfoFlag(), baseInfo.getFullInfoFlag()))) {
+            throw new IllegalArgumentException("如需编辑基础信息，请先删除当前所有受益人");
+        }
+        thfxqMapper.upsertBenefitBaseInfo(baseInfo);
+        if (!rows.isEmpty() && (saved == null || rows.stream().anyMatch(row -> !hasBenefitBaseInfo(row)))) {
             thfxqMapper.updateBenefitBaseInfo(baseInfo);
             thfxqMapper.updateBenefitBaseInfoTmp(baseInfo);
         }
-        Map<String, String> savedBase = new LinkedHashMap<>();
-        savedBase.put("companyType", baseInfo.getCompanyType());
-        savedBase.put("boType", baseInfo.getBoType());
-        savedBase.put("fullInfoFlag", baseInfo.getFullInfoFlag());
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("persisted", persisted);
-        result.put("baseInfo", savedBase);
+        result.put("persisted", true);
+        result.put("baseInfo", benefitBaseValues(baseInfo));
         return result;
     }
 
     @Override
+    public Map<String, String> selectBenefitBaseInfo(String clientId) {
+        RelatedInfo saved = thfxqMapper.selectBenefitBaseInfo(clientId);
+        return saved == null ? null : benefitBaseValues(saved);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
-    public int updateRelatedEntity(String clientId, String relatedName, List<RelatedInfo> organEntityList, String createUser) {
+    public int deleteBenefitBaseInfo(String clientId) {
+        if (!StringUtils.hasText(clientId)) {
+            throw new IllegalArgumentException("客户号不能为空");
+        }
+        if (!thfxqMapper.selectRelatedInfo(clientId, "5", null).isEmpty()) {
+            throw new IllegalArgumentException("请先删除当前所有受益人，才能删除基础信息");
+        }
+        return thfxqMapper.deleteBenefitBaseInfo(clientId);
+    }
+
+    private Map<String, String> benefitBaseValues(RelatedInfo baseInfo) {
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("companyType", baseInfo.getCompanyType());
+        values.put("boType", baseInfo.getBoType());
+        values.put("fullInfoFlag", baseInfo.getFullInfoFlag() == null ? "" : baseInfo.getFullInfoFlag());
+        return values;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int updateRelatedEntity(String clientId, String relatedName, String sourceRelatedId,
+                                   List<RelatedInfo> organEntityList, String createUser) {
         validateRelatedEntityUpdate(clientId, relatedName, organEntityList);
-        thfxqMapper.deleteOtherRelatedInfoByName(clientId, relatedName);
-        thfxqMapper.deleteOtherRelatedInfoTmpByName(clientId, relatedName);
+        String organFlag = organEntityList.get(0).getOrganFlag();
+        if ("0".equals(organFlag) && StringUtils.hasText(sourceRelatedId)) {
+            RelatedInfo original = thfxqMapper.selectPersonalInfoById(clientId, sourceRelatedId).stream()
+                    .filter(row -> "0".equals(row.getOrganFlag()) && relatedName.equals(row.getRelatedName())
+                            && !"5".equals(row.getRelatedType()))
+                    .findFirst().orElse(null);
+            if (original != null) {
+                RelatedInfo submitted = organEntityList.stream()
+                        .filter(row -> original.getRelatedType().equals(row.getRelatedType()))
+                        .findFirst().orElse(organEntityList.get(0));
+                boolean syncMobile = "1".equals(original.getRelatedType()) || "4".equals(original.getRelatedType());
+                syncPersonalInfo(original, submitted, true, syncMobile);
+            }
+        }
+        thfxqMapper.deleteOtherRelatedInfoByName(clientId, relatedName, organFlag);
+        thfxqMapper.deleteOtherRelatedInfoTmpByName(clientId, relatedName, organFlag);
         int totalAffected = 0;
         for (RelatedInfo organEntity : organEntityList) {
             organEntity.setCreateUser(createUser);
             totalAffected += thfxqMapper.insertRelatedInfoTmp(organEntity, false);
         }
         return totalAffected;
+    }
+
+    private void syncPersonalInfo(RelatedInfo original, RelatedInfo submitted, boolean beneficiary, boolean syncMobile) {
+        Map<String, String> changes = new LinkedHashMap<>();
+        putPersonalChange(changes, "nationality", original.getNationality(), submitted.getNationality());
+        putPersonalChange(changes, "birthday", comparablePersonalDate(original.getBirthday()), submitted.getBirthday());
+        putPersonalChange(changes, "idType", original.getIdType(), submitted.getIdType());
+        putPersonalChange(changes, "idNo", original.getIdNo(), submitted.getIdNo());
+        putPersonalChange(changes, "idBegindate", comparablePersonalDate(original.getIdBegindate()), submitted.getIdBegindate());
+        putPersonalChange(changes, "idEnddate", comparablePersonalDate(original.getIdEnddate()), submitted.getIdEnddate());
+        if (syncMobile) {
+            putPersonalChange(changes, "mobno1", original.getMobno1(), submitted.getMobno1());
+        }
+        if (!changes.isEmpty()) {
+            boolean onlyMobile = changes.size() == 1 && changes.containsKey("mobno1");
+            thfxqMapper.syncRelatedPersonalInfo(submitted.getClientId(), original.getRelatedName(),
+                    changes, beneficiary, onlyMobile, false);
+            thfxqMapper.syncRelatedPersonalInfo(submitted.getClientId(), original.getRelatedName(),
+                    changes, beneficiary, onlyMobile, true);
+        }
+    }
+
+    private void putPersonalChange(Map<String, String> changes, String key, String original, String submitted) {
+        if (!sameTextValue(original, submitted)) {
+            changes.put(key, submitted);
+        }
+    }
+
+    private boolean sameTextValue(String first, String second) {
+        return (first == null ? "" : first.trim()).equals(second == null ? "" : second.trim());
+    }
+
+    private String comparablePersonalDate(String value) {
+        String date = value == null ? "" : value.trim();
+        if (date.matches("\\d{8}")) {
+            return date.substring(0, 4) + "-" + date.substring(4, 6) + "-" + date.substring(6);
+        }
+        return date;
     }
 
     private void prepareNewBenefit(RelatedInfo benefitInfo) {
@@ -1994,20 +2083,14 @@ public class ThfxqServiceImpl implements ThfxqService {
         baseInfo.setBoType(prefix >= '1' && prefix <= '6' ? "1" : "2");
     }
 
-    private void validateBenefitBaseSupplement(List<RelatedInfo> rows, RelatedInfo baseInfo) {
-        if (rows.isEmpty()) {
-            return;
+    private void applySavedBenefitBase(RelatedInfo benefitInfo) {
+        RelatedInfo saved = thfxqMapper.selectBenefitBaseInfo(benefitInfo.getClientId());
+        if (saved == null) {
+            throw new IllegalArgumentException("请先在页面填写受益人基础信息");
         }
-        if (rows.stream().allMatch(this::hasBenefitBaseInfo)) {
-            throw new IllegalArgumentException("基础信息已完整，如需编辑，请先删除当前所有受益人");
-        }
-        for (RelatedInfo row : rows) {
-            if (hasBenefitBaseInfo(row) &&
-                    (!row.getCompanyType().trim().equals(baseInfo.getCompanyType()) ||
-                     !(row.getFullInfoFlag() == null ? "" : row.getFullInfoFlag().trim()).equals(baseInfo.getFullInfoFlag()))) {
-                throw new IllegalArgumentException("补录须沿用已有受益人保存的基础信息，请刷新页面后重试");
-            }
-        }
+        benefitInfo.setCompanyType(saved.getCompanyType());
+        benefitInfo.setBoType(saved.getBoType());
+        benefitInfo.setFullInfoFlag(saved.getFullInfoFlag());
     }
 
     private void prepareBenefit(RelatedInfo benefitInfo, boolean editing) {
@@ -2042,7 +2125,10 @@ public class ThfxqServiceImpl implements ThfxqService {
         }
         for (RelatedInfo organEntity : organEntityList) {
             if (organEntity == null || !clientId.equals(organEntity.getClientId())
-                    || !Arrays.asList("1", "2", "3", "4").contains(organEntity.getRelatedType())) {
+                    || !relatedName.equals(organEntity.getRelatedName())
+                    || !Arrays.asList("1", "2", "3", "4").contains(organEntity.getRelatedType())
+                    || !Arrays.asList("0", "1").contains(organEntity.getOrganFlag())
+                    || !organEntity.getOrganFlag().equals(organEntityList.get(0).getOrganFlag())) {
                 throw new IllegalArgumentException("其他关联人修改仅允许维护当前客户的非受益人角色");
             }
         }

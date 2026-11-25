@@ -59,4 +59,8 @@ public class RelatedInfo {
     private String seniormgrcn;
     private String seniormgrposcn;
     private String ownerrightmgmtpostother;
+    private String benefitStartDate;
+    private String benefitEndDate;
+    private String seniormgrcnStartDate;
+    private String seniormgrcnEndDate;
 }

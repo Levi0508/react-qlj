@@ -1,5 +1,5 @@
 import React from 'react';
-import { benefitBaseFields, benefitFields, benefitValue, getBenefitBase } from '../../utils/beneficiary';
+import { benefitBaseFields, benefitFields, benefitValue } from '../../utils/beneficiary';
 
 // ============ 样式注入 ============
 const styleSheet = `
@@ -149,6 +149,7 @@ const PDFContent = React.forwardRef((props, ref) => {
     relatedInfo3 = [],
     relatedInfo4 = [],
     relatedInfo5 = [],
+    benefitBase,
     organFlag = '1',
     dictData = {},
     visible = false
@@ -433,9 +434,12 @@ const PDFContent = React.forwardRef((props, ref) => {
 
   // 渲染受益所有人
   const renderBeneficiary = () => {
-    const base = getBenefitBase(relatedInfo5) || {};
-    return renderPersonList('受益所有人信息', relatedInfo5, item => {
-      const fields = benefitBaseFields.concat(benefitFields(item, false, base));
+    const base = benefitBase || {};
+    const baseOnly = relatedInfo5.length === 0 && !!benefitBase;
+    const title = baseOnly ? '受益人基础信息' : '受益所有人信息';
+    return renderPersonList(title, baseOnly ? [base] : relatedInfo5, item => {
+      const fields = baseOnly ? benefitBaseFields :
+        benefitBaseFields.concat(benefitFields(item, false, base, dictData));
       const groups = [];
       fields.forEach(field => {
         const last = groups[groups.length - 1];

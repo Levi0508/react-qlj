@@ -26,6 +26,13 @@ export default {
       data
     });
   },
+  async selectBenefitBaseInfo(params) {
+    return request({ url: 'thfxq/selectBenefitBaseInfo', method: 'GET', params });
+  },
+  async deleteBenefitBaseInfo(data) {
+    return request({ url: 'thfxq/deleteBenefitBaseInfo', method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, data });
+  },
   async updateBenefitInfo(data) {
     return await request({
       url: 'thfxq/updateBenefitInfo',

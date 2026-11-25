@@ -234,10 +234,26 @@ public class ThfxqController {
         }
     }
 
+    @GetMapping("/selectBenefitBaseInfo")
+    public R<Map<String, String>> selectBenefitBaseInfo(@RequestParam("clientId") String clientId) {
+        return R.data(ithfxqService.selectBenefitBaseInfo(clientId));
+    }
+
+    @PostMapping("/deleteBenefitBaseInfo")
+    public R<Integer> deleteBenefitBaseInfo(@RequestBody RelatedInfo baseInfo) {
+        try {
+            return R.data(ithfxqService.deleteBenefitBaseInfo(baseInfo.getClientId()));
+        } catch (Exception e) {
+            log.error("删除受益人基础信息失败", e);
+            return R.fail(e instanceof IllegalArgumentException ? e.getMessage() : "删除受益人基础信息失败");
+        }
+    }
+
     @PostMapping("/updateRelatedEntity")
     public R<String> updateRelatedEntity(@RequestBody UpdateOrganEntityRequest request) {
         try {
-            int result = ithfxqService.updateRelatedEntity(request.getClientId(), request.getRelatedName(), request.getOrganEntityList(), request.getCreateUser());
+            int result = ithfxqService.updateRelatedEntity(request.getClientId(), request.getRelatedName(),
+                    request.getSourceRelatedId(), request.getOrganEntityList(), request.getCreateUser());
             return R.data(JSON.toJSONString(result, SerializerFeature.WriteMapNullValue));
         } catch (Exception e) {
             log.error("更新其他关联人失败", e);

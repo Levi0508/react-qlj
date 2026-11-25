@@ -9,6 +9,7 @@ import java.util.List;
 public class UpdateOrganEntityRequest {
     private String clientId;
     private String relatedName;
+    private String sourceRelatedId;
     private List<RelatedInfo> organEntityList;
     private String createUser;
 }
