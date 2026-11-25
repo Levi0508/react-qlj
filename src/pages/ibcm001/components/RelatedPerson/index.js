@@ -183,6 +183,16 @@ function RelatedPerson({
         return item ? item.v : '-';
     };
 
+    const formatCertificateType = record => {
+        const code = String(record.id_type ?? record.idType ?? '').trim();
+        if (!code) return '-';
+        const dictType = String(record.organ_flag ?? record.organFlag) === '1' ?
+            'id_type_jg_list' : 'id_type_gr_list';
+        const options = (dictData[dictType] || []).concat(dictData.id_type_list || []);
+        const option = options.find(item => String(item.k).trim() === code);
+        return option?.v || '-';
+    };
+
     // 响应附件刷新事件
 
     // 重新加载所有关联人信息的函数
@@ -1023,7 +1033,7 @@ function RelatedPerson({
                                 <span style={{ color: '#909399', fontWeight: '500', marginRight: '8px' }}>
                                     证件类型:
                                 </span>
-                                {formatDictMap('id_type_list', item.id_type) || '-'}
+                                {formatCertificateType(item)}
                             </Col>
                             <Col span={8}>
                                 <span style={{ color: '#909399', fontWeight: '500', marginRight: '8px' }}>
