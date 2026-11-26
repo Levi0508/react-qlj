@@ -99,18 +99,27 @@ export function benefitOwnershipSections(types) {
   })).filter(group => group.codes.length > 0);
 }
 
-export function changeBenefitOwnership(item, selection, companyType) {
+export function benefitTypeOptions(dictData, companyType) {
+  const group = String(companyType || '').charAt(0);
+  if (!group) return [];
+  return (dictData.bnf_type_new_list || []).filter(item => String(item.k).startsWith('N' + group))
+    .sort((a, b) => String(a.k).localeCompare(String(b.k), 'en', { numeric: true }));
+}
+
+export function changeBenefitOwnership(item, selection, companyType, preserveLinkedFields = false) {
   const previous = toBenefitCodes(item.bnf_type);
   const bnfType = normalizeBnfTypeSelection(selection);
   const next = { ...item, bnf_type: bnfType, bnf_type_str: bnfType.join(',') };
-  const retained = new Set(benefitOwnershipSections(previous.filter(code => bnfType.includes(code)))
-    .map(group => group.fields));
-  benefitOwnershipSections(previous.concat(bnfType)).forEach(group => {
-    if (!retained.has(group.fields)) group.fields.forEach(key => {
-      next[key] = multiKeys.includes(key) ? [] : '';
-      if (multiKeys.includes(key)) next[key + '_str'] = '';
+  if (!preserveLinkedFields) {
+    const retained = new Set(benefitOwnershipSections(previous.filter(code => bnfType.includes(code)))
+      .map(group => group.fields));
+    benefitOwnershipSections(previous.concat(bnfType)).forEach(group => {
+      if (!retained.has(group.fields)) group.fields.forEach(key => {
+        next[key] = multiKeys.includes(key) ? [] : '';
+        if (multiKeys.includes(key)) next[key + '_str'] = '';
+      });
     });
-  });
+  }
 
   const added = bnfType.filter(code => !previous.includes(code));
   if (added.some(code => ['NA3-1', 'NB3-1'].includes(code))) next.actctrlcpny = '2';
@@ -224,8 +233,10 @@ export function benefitRecordErrors(item, isSpecial, base = item, dictData = {})
       errors.push({ field: field.key, message: field.label + '须为0至100之间的数字' });
     }
   });
-  const mobile = String(item.mobno1 || '').trim(), telephone = String(item.mobno2 || '').trim();
-  if (!mobile && !telephone) errors.push({ field: 'mobno1', message: '请至少填写一项联系方式（手机或固定电话）' });
+  if (base.full_info_flag !== '01') {
+    const mobile = String(item.mobno1 || '').trim(), telephone = String(item.mobno2 || '').trim();
+    if (!mobile && !telephone) errors.push({ field: 'mobno1', message: '请至少填写一项联系方式（手机或固定电话）' });
+  }
   if (isSpecial && !!item.id_type !== !!item.id_no) {
     errors.push({ field: 'id_no', message: '证件类型与证件号码必须同时填写或同时留空' });
   }
@@ -248,10 +259,16 @@ export function benefitListErrors(rows, isSpecial, sharedBase, { forSubmit = fal
   return errors;
 }
 
-export function newBenefitDraft(row = {}) {
+export function newBenefitDraft(row = {}, dictData = {}) {
   const result = normalizeRelatedInfo({ related_type: '5', organ_flag: '0', data_status: '0', ...row });
   multiKeys.forEach(key => { result[key] = toBenefitCodes(result[key]); });
   if (String(result.company_type || '').charAt(0) === 'I') result.seniormgrpos = ['10'];
+  if (result.bnf_type.length === 0) {
+    const selectable = benefitTypeOptions(dictData, result.company_type).filter(item => item.disabled !== true);
+    if (selectable.length === 1) {
+      return changeBenefitOwnership(result, [String(selectable[0].k)], result.company_type, true);
+    }
+  }
   return result;
 }
 

@@ -6,7 +6,7 @@ import services from '../../services';
 import RelatedPerson from '../RelatedPerson';
 import {
   normalizeRelatedInfo, relatedInfoPayload, normalizeBenefitBaseInfo, getBenefitBoType,
-  hasBenefitBaseInfo, benefitOwnershipSections, changeBenefitOwnership,
+  hasBenefitBaseInfo, benefitOwnershipSections, benefitTypeOptions, changeBenefitOwnership,
   orderedBenefitCompanies, benefitBaseFields, benefitFields, benefitValue,
   benefitRecordErrors, newBenefitDraft, normalizeBnfTypeSelection
 } from '../../utils/beneficiary';
@@ -131,7 +131,7 @@ function BeneficialOwner(props) {
       const latest = await refresh();
       const current = record ? latest.find(item => String(item.related_id) === String(record.related_id)) : null;
       if (record && !current) { message.warning('该受益人已不存在，请重新选择'); return; }
-      setDraft(newBenefitDraft({ ...(current || {}), ...base }));
+      setDraft(newBenefitDraft({ ...(current || {}), ...base }, dictData));
       setMode(record ? 'edit' : 'add');
       setErrors({});
       setVisible(true);
@@ -217,7 +217,7 @@ function BeneficialOwner(props) {
       const latest = await refresh(mode === 'edit');
       if (nextEntry) {
         if (!requireBase(base, latest)) return;
-        setDraft(newBenefitDraft(base));
+        setDraft(newBenefitDraft(base, dictData));
         setMode('add');
         setErrors({});
         setVisible(true);
@@ -265,9 +265,7 @@ function BeneficialOwner(props) {
     if (field.type === 'select' || field.type === 'multi') {
       let list = dictData[field.dict] || [];
       if (field.key === 'bnf_type') {
-        const prefix = 'N' + String(base?.company_type || '').charAt(0);
-        list = list.filter(item => String(item.k).startsWith(prefix))
-          .sort((a, b) => String(a.k).localeCompare(String(b.k), 'en', { numeric: true }));
+        list = benefitTypeOptions(dictData, base?.company_type);
       }
       if (field.key === 'seniormgrpos' && (draft.bnf_type.includes('NA4') || draft.bnf_type.includes('NB4'))) {
         const allowed = draft.bnf_type.includes('NA4') ? ['10', '11', '12', '13', '15'] : ['14', '15'];
@@ -278,8 +276,10 @@ function BeneficialOwner(props) {
         mode={field.type === 'multi' ? 'multiple' : undefined} optionFilterProp="children"
         disabled={field.readOnly} style={{ width: '100%' }} placeholder="请选择" onChange={selected => changeField(field, selected || (field.type === 'multi' ? [] : ''))}>
         {list.map(item => <Option key={String(item.k)} value={String(item.k)}
-          disabled={field.key === 'bnf_type' && !(draft.bnf_type || []).includes(String(item.k)) &&
-            !normalizeBnfTypeSelection((draft.bnf_type || []).concat(String(item.k))).includes(String(item.k))}>
+          disabled={field.key === 'bnf_type' && (item.disabled === true || (
+            !(draft.bnf_type || []).includes(String(item.k)) &&
+            !normalizeBnfTypeSelection((draft.bnf_type || []).concat(String(item.k))).includes(String(item.k))
+          ))}>
           {item.v}
         </Option>)}
       </Select>;
