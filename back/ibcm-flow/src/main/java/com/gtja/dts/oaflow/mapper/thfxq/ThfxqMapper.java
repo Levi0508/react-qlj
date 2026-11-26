@@ -106,7 +106,11 @@ public interface ThfxqMapper {
      * @param keyName
      * @return
      */
-    @Select("select a.map_k as k,a.map_v as v from thjs.wb_key a inner join thjs.wb_KEY_TYPE b on a.rid = b.sid where b.key_name = #{keyName}")
+    @Select("<script>" +
+            "select a.map_k as k, a.map_v as v from thjs.wb_key a " +
+            "inner join thjs.wb_key_type b on a.rid = b.sid where b.key_name = #{keyName} " +
+            "<if test=\"keyName == 'benefit_company_no'\">order by a.sid</if>" +
+            "</script>")
     List<WbKey> selectKey(@Param("keyName") String keyName);
 
     /**
